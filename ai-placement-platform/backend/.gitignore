@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# env files (VERY IMPORTANT)
+.env
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+
+# build folders
+dist/
+build/
+
+# coverage
+coverage/
