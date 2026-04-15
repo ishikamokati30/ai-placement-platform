@@ -8,7 +8,11 @@ const client = new OpenAI({
 // 🎯 Generate Question
 const generateQuestion = async (topic, difficulty, role) => {
   try {
-    const prompt = `Generate a ${difficulty} level interview question on ${topic} for a ${role} candidate. Keep it realistic and commonly asked.`;
+    const prompt = `Generate a ${difficulty} level interview question on ${topic} for a ${role} candidate. Keep it realistic and commonly asked.
+    Ask a follow-up interview question on ${topic}.
+Make it ${difficulty} level.
+Focus on concepts the candidate likely got wrong.
+Ask only ONE clear question.`;
 
     const response = await client.chat.completions.create({
       model: "mistralai/mistral-7b-instruct", // free model
