@@ -1,6 +1,8 @@
 const interviewService = require("../services/interviewService");
 const aiService = require("../services/aiService");
 const adaptiveService = require("../services/adaptiveService");
+const dashboardService = require("../services/dashboardService");
+const updateInterviewScore = require("../services/interviewService").updateInterviewScore;
 
 // 🚀 Start Interview
 const startInterview = async (req, res) => {
@@ -36,7 +38,6 @@ const submitAnswer = async (req, res) => {
 
     // 1️⃣ Evaluate answer
     const feedback = await aiService.evaluateAnswer(question, answer);
-
     // 2️⃣ Save response
     await interviewService.saveResponse(
       interviewId,
@@ -44,6 +45,11 @@ const submitAnswer = async (req, res) => {
       answer,
       feedback
     );
+     await interviewService.updateInterviewScore(
+  interviewId,
+  feedback.score
+    );
+
 
     // 3️⃣ Extract topic dynamically (IMPORTANT FIX)
     const topic = question.toLowerCase().includes("dbms")
@@ -78,6 +84,8 @@ const submitAnswer = async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "Error evaluating answer" });
   }
+  console.log("📌 Interview ID:", interviewId);
+console.log("📌 Score to update:", feedback.score);
 };
 
 module.exports = {
