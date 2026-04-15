@@ -6,16 +6,18 @@ const authService = require("../services/authService");
 const signup = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
+    const trimmedName = name?.trim();
 
     // ✅ Basic validation
-    if (!name || !email || !password) {
+    if (!trimmedName || !normalizedEmail || !password) {
       return res.status(400).json({
         message: "All fields (name, email, password) are required",
       });
     }
 
     // ✅ Check if user already exists
-    const existingUser = await authService.getUserByEmail(email);
+    const existingUser = await authService.getUserByEmail(normalizedEmail);
     if (existingUser) {
       return res.status(400).json({
         message: "Email already registered",
@@ -27,8 +29,8 @@ const signup = async (req, res) => {
 
     // ✅ Create user
     const user = await authService.createUser(
-      name,
-      email,
+      trimmedName,
+      normalizedEmail,
       hashedPassword
     );
 
@@ -51,27 +53,35 @@ const signup = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
     // ✅ Basic validation
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         message: "Email and password are required",
       });
     }
 
+    if (!process.env.JWT_SECRET) {
+      console.error("Login Error: JWT_SECRET is not configured");
+      return res.status(500).json({
+        message: "Server authentication is not configured",
+      });
+    }
+
     // ✅ Check user
-    const user = await authService.getUserByEmail(email);
+    const user = await authService.getUserByEmail(normalizedEmail);
     if (!user) {
-      return res.status(400).json({
-        message: "User not found",
+      return res.status(401).json({
+        message: "Invalid email or password",
       });
     }
 
     // ✅ Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({
-        message: "Invalid credentials",
+      return res.status(401).json({
+        message: "Invalid email or password",
       });
     }
 
@@ -91,7 +101,7 @@ const login = async (req, res) => {
       user,
     });
   } catch (err) {
-    console.error("Login Error:", err.message);
+    console.error("Login Error:", err);
     return res.status(500).json({
       message: "Server error during login",
     });
