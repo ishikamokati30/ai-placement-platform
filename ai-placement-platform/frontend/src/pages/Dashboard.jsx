@@ -22,6 +22,10 @@ export default function Dashboard() {
       <h2>{data.message}</h2>
 
       <h3>Readiness Score: {data.readinessScore}%</h3>
+       <br /><br />
+    <button onClick={() => window.location.href = "/interview"}>
+      Start Interview
+    </button>
     </div>
   );
 }
