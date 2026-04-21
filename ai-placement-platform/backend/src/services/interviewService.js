@@ -39,9 +39,17 @@ const updateInterviewScore = async (interviewId, score) => {
     throw err;
   }
 };
+const getInterviewById = async (id) => {
+  const result = await pool.query(
+    "SELECT * FROM interviews WHERE id = $1",
+    [id]
+  );
+  return result.rows[0];
+};
 
 module.exports = {
   createInterview,
   saveResponse,
-   updateInterviewScore,
+  updateInterviewScore,
+  getInterviewById, 
 };

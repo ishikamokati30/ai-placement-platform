@@ -7,6 +7,35 @@ export default function Interview() {
   const [feedback, setFeedback] = useState(null);
   const [interviewId, setInterviewId] = useState(null);
   const [loading, setLoading] = useState(false);
+const [role, setRole] = useState("SDE");
+const [type, setType] = useState("technical");
+const [topic, setTopic] = useState("");
+
+
+<div style={{ marginBottom: "20px" }}>
+  <label>Role: </label>
+  <select onChange={(e) => setRole(e.target.value)}>
+    <option value="SDE">SDE</option>
+    <option value="Data Analyst">Data Analyst</option>
+  </select>
+
+  <br /><br />
+
+  <label>Type: </label>
+  <select onChange={(e) => setType(e.target.value)}>
+    <option value="technical">Technical</option>
+    <option value="hr">HR</option>
+  </select>
+
+  <br /><br />
+
+  <label>Topic (optional): </label>
+  <input
+    placeholder="e.g. DBMS, DSA, OS"
+    value={topic}
+    onChange={(e) => setTopic(e.target.value)}
+  />
+</div>
 
   // 🚀 Start Interview
   const startInterview = async () => {
@@ -14,11 +43,11 @@ export default function Interview() {
       setLoading(true);
 
       const res = await API.post("/interview/start", {
-        type: "technical",
-        topic: "DBMS",
-        difficulty: "medium",
-        role: "SDE",
-      });
+  type,
+  topic,
+  difficulty: "medium",
+  role,
+});
 
       setQuestion(res.data.question);
       setInterviewId(res.data.interviewId);
