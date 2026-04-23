@@ -1,5 +1,6 @@
 import { useState } from "react";
-import API from "../services/api";
+import API, { getApiErrorMessage } from "../services/api";
+import Navbar from "../components/Navbar";
 
 export default function Interview() {
   const [question, setQuestion] = useState("");
@@ -7,64 +8,50 @@ export default function Interview() {
   const [feedback, setFeedback] = useState(null);
   const [interviewId, setInterviewId] = useState(null);
   const [loading, setLoading] = useState(false);
-const [role, setRole] = useState("SDE");
-const [type, setType] = useState("technical");
-const [topic, setTopic] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [role, setRole] = useState("SDE");
+  const [type, setType] = useState("technical");
+  const [topic, setTopic] = useState("");
 
-
-<div style={{ marginBottom: "20px" }}>
-  <label>Role: </label>
-  <select onChange={(e) => setRole(e.target.value)}>
-    <option value="SDE">SDE</option>
-    <option value="Data Analyst">Data Analyst</option>
-  </select>
-
-  <br /><br />
-
-  <label>Type: </label>
-  <select onChange={(e) => setType(e.target.value)}>
-    <option value="technical">Technical</option>
-    <option value="hr">HR</option>
-  </select>
-
-  <br /><br />
-
-  <label>Topic (optional): </label>
-  <input
-    placeholder="e.g. DBMS, DSA, OS"
-    value={topic}
-    onChange={(e) => setTopic(e.target.value)}
-  />
-</div>
-
-  // 🚀 Start Interview
   const startInterview = async () => {
-    try {
-      setLoading(true);
+    setLoading(true);
+    setErrorMessage("");
 
+    try {
       const res = await API.post("/interview/start", {
-  type,
-  topic,
-  difficulty: "medium",
-  role,
-});
+        type,
+        topic,
+        difficulty: "medium",
+        role,
+      });
 
       setQuestion(res.data.question);
       setInterviewId(res.data.interviewId);
       setFeedback(null);
       setAnswer("");
     } catch (err) {
-      alert("Failed to start interview");
+      const message = getApiErrorMessage(err);
+      console.error("Start interview failed:", {
+        message,
+        status: err.response?.status,
+        data: err.response?.data,
+      });
+      setErrorMessage(message || "Failed to start interview.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🧠 Submit Answer
   const submitAnswer = async () => {
-    try {
-      setLoading(true);
+    if (!interviewId || !question || !answer.trim()) {
+      setErrorMessage("Start an interview and enter an answer first.");
+      return;
+    }
 
+    setLoading(true);
+    setErrorMessage("");
+
+    try {
       const res = await API.post("/interview/answer", {
         interviewId,
         question,
@@ -73,79 +60,177 @@ const [topic, setTopic] = useState("");
 
       setFeedback(res.data);
     } catch (err) {
-      alert("Error submitting answer");
+      const message = getApiErrorMessage(err);
+      console.error("Submit answer failed:", {
+        message,
+        status: err.response?.status,
+        data: err.response?.data,
+      });
+      setErrorMessage(message || "Error submitting answer.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "40px" }}>
-      <h1>AI Mock Interview</h1>
+    <div style={{ minHeight: "100vh", background: "#f5f5f5" }}>
+      <Navbar />
+      <main style={{ padding: "40px", maxWidth: "900px", margin: "0 auto" }}>
+        <h1>AI Mock Interview</h1>
 
-      <button onClick={startInterview}>
-        {loading ? "Starting..." : "Start Interview"}
-      </button>
+        <section style={styles.controls}>
+          <label style={styles.label}>
+            Role
+            <select
+              style={styles.input}
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+            >
+              <option value="SDE">SDE</option>
+              <option value="Data Analyst">Data Analyst</option>
+            </select>
+          </label>
 
-      {question && (
-        <>
-          <h3>Question:</h3>
-          <p>{question}</p>
+          <label style={styles.label}>
+            Type
+            <select
+              style={styles.input}
+              value={type}
+              onChange={(event) => setType(event.target.value)}
+            >
+              <option value="technical">Technical</option>
+              <option value="hr">HR</option>
+            </select>
+          </label>
 
-          <textarea
-            rows="6"
-            cols="60"
-            placeholder="Type your answer..."
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-          />
+          <label style={styles.label}>
+            Topic
+            <input
+              style={styles.input}
+              placeholder="e.g. DBMS, DSA, OS"
+              value={topic}
+              onChange={(event) => setTopic(event.target.value)}
+            />
+          </label>
+        </section>
 
-          <br /><br />
+        {errorMessage ? <p style={styles.error}>{errorMessage}</p> : null}
 
-          <button onClick={submitAnswer}>
-            {loading ? "Submitting..." : "Submit Answer"}
-          </button>
-        </>
-      )}
+        <button style={styles.primaryButton} onClick={startInterview} disabled={loading}>
+          {loading ? "Working..." : "Start Interview"}
+        </button>
 
-      {feedback && (
-        <div style={{ marginTop: "20px" }}>
-          <h3>Feedback</h3>
+        {question ? (
+          <section style={styles.section}>
+            <h2>Question</h2>
+            <p>{question}</p>
 
-          <p><b>Score:</b> {feedback.feedback.score}/10</p>
+            <textarea
+              style={styles.textarea}
+              rows="6"
+              placeholder="Type your answer..."
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+            />
 
-          <p><b>Strengths:</b></p>
-          <ul>
-            {feedback.feedback.strengths.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
+            <button style={styles.primaryButton} onClick={submitAnswer} disabled={loading}>
+              {loading ? "Working..." : "Submit Answer"}
+            </button>
+          </section>
+        ) : null}
 
-          <p><b>Weaknesses:</b></p>
-          <ul>
-            {feedback.feedback.weaknesses.map((w, i) => (
-              <li key={i}>{w}</li>
-            ))}
-          </ul>
+        {feedback?.feedback ? (
+          <section style={styles.section}>
+            <h2>Feedback</h2>
 
-          <p><b>Missing Concepts:</b></p>
-          <ul>
-            {feedback.feedback.missing_concepts.map((m, i) => (
-              <li key={i}>{m}</li>
-            ))}
-          </ul>
+            <p>
+              <b>Score:</b> {feedback.feedback.score}/10
+            </p>
 
-          <p><b>Improved Answer:</b></p>
-          <p>{feedback.feedback.improved_answer}</p>
+            <h3>Strengths</h3>
+            <ul>
+              {feedback.feedback.strengths.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
 
-          {feedback.followUpQuestion && (
-            <>
-              <h3>Follow-up Question:</h3>
-              <p>{feedback.followUpQuestion}</p>
-            </>
-          )}
-        </div>
-      )}
+            <h3>Weaknesses</h3>
+            <ul>
+              {feedback.feedback.weaknesses.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+
+            <h3>Missing Concepts</h3>
+            <ul>
+              {feedback.feedback.missing_concepts.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+
+            <h3>Improved Answer</h3>
+            <p>{feedback.feedback.improved_answer}</p>
+
+            {feedback.followUpQuestion ? (
+              <>
+                <h3>Follow-up Question</h3>
+                <p>{feedback.followUpQuestion}</p>
+              </>
+            ) : null}
+          </section>
+        ) : null}
+      </main>
     </div>
   );
 }
+
+const styles = {
+  controls: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "16px",
+    margin: "20px 0",
+  },
+  label: {
+    display: "grid",
+    gap: "6px",
+    fontWeight: 600,
+  },
+  input: {
+    height: "40px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "6px",
+    padding: "0 10px",
+  },
+  textarea: {
+    width: "100%",
+    border: "1px solid #cbd5e1",
+    borderRadius: "6px",
+    padding: "12px",
+    boxSizing: "border-box",
+    resize: "vertical",
+  },
+  section: {
+    marginTop: "24px",
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    padding: "20px",
+  },
+  primaryButton: {
+    marginTop: "12px",
+    padding: "10px 18px",
+    background: "#2563eb",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+  error: {
+    color: "#b91c1c",
+    background: "#fee2e2",
+    border: "1px solid #fecaca",
+    borderRadius: "6px",
+    padding: "10px",
+  },
+};

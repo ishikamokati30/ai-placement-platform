@@ -2,10 +2,22 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const authService = require("../services/authService");
 
+const signToken = (user) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
+  return jwt.sign(
+    { id: user.id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "1d" }
+  );
+};
+
 // 🔐 SIGNUP
 const signup = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password } = req.body || {};
     const normalizedEmail = email?.trim().toLowerCase();
     const trimmedName = name?.trim();
 
@@ -13,6 +25,12 @@ const signup = async (req, res) => {
     if (!trimmedName || !normalizedEmail || !password) {
       return res.status(400).json({
         message: "All fields (name, email, password) are required",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
       });
     }
 
@@ -34,15 +52,27 @@ const signup = async (req, res) => {
       hashedPassword
     );
 
+    const token = signToken(user);
+
     // ✅ Remove password before sending response
     delete user.password;
 
     return res.status(201).json({
       message: "User registered successfully",
+      token,
       user,
     });
   } catch (err) {
-    console.error("Signup Error:", err.message);
+    if (err.code === "23505") {
+      return res.status(400).json({
+        message: "Email already registered",
+      });
+    }
+
+    console.error("Signup Error:", {
+      message: err.message,
+      code: err.code || null,
+    });
     return res.status(500).json({
       message: "Server error during signup",
     });
@@ -52,20 +82,13 @@ const signup = async (req, res) => {
 // 🔐 LOGIN
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
     const normalizedEmail = email?.trim().toLowerCase();
 
     // ✅ Basic validation
     if (!normalizedEmail || !password) {
       return res.status(400).json({
         message: "Email and password are required",
-      });
-    }
-
-    if (!process.env.JWT_SECRET) {
-      console.error("Login Error: JWT_SECRET is not configured");
-      return res.status(500).json({
-        message: "Server authentication is not configured",
       });
     }
 
@@ -86,11 +109,7 @@ const login = async (req, res) => {
     }
 
     // ✅ Generate JWT
-    const token = jwt.sign(
-      { id: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    const token = signToken(user);
 
     // ✅ Remove password
     delete user.password;

@@ -1,24 +1,39 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import Navbar from "../components/Navbar";
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
-      const res = await API.get("/dashboard");
-      setData(res.data);
+      try {
+        const res = await API.get("/dashboard");
+        setData(res.data);
+      } catch (error) {
+        if (error.response?.status === 401) {
+          localStorage.removeItem("token");
+          navigate("/", { replace: true });
+          return;
+        }
+
+        setErrorMessage("Unable to load dashboard.");
+      }
     };
 
     fetchData();
-  }, []);
+  }, [navigate]);
 
-  if (!data) return <p>Loading...</p>;
+  if (errorMessage) return <p style={{ padding: "40px" }}>{errorMessage}</p>;
+  if (!data) return <p style={{ padding: "40px" }}>Loading...</p>;
 
 
 return (
   <div style={{ padding: "40px", background: "#f5f5f5", minHeight: "100vh" }}>
+    <Navbar />
     <h1>Dashboard</h1>
 
     <div style={{
