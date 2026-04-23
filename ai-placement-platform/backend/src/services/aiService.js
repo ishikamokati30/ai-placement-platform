@@ -1,6 +1,7 @@
 const OpenAI = require("openai");
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || "openrouter/free";
 const DEFAULT_REFERER =
   process.env.OPENROUTER_SITE_URL || "http://localhost:3000";
@@ -8,7 +9,7 @@ const DEFAULT_TITLE =
   process.env.OPENROUTER_APP_NAME || "AI Placement Platform";
 
 const client = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
+  apiKey: OPENROUTER_API_KEY || "missing-openrouter-api-key",
   baseURL: OPENROUTER_BASE_URL,
   defaultHeaders: {
     "HTTP-Referer": DEFAULT_REFERER,
@@ -30,12 +31,25 @@ const logOpenRouterError = (label, error) => {
     model: DEFAULT_MODEL,
     message: error.message,
     status: error.status || error.code || null,
+    type: error.type || null,
     details: error.response?.data || error.error || null,
   });
 };
 
+const normalizeText = (value, fallback) => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || fallback;
+};
+
 const extractMessageText = (response) =>
   response?.choices?.[0]?.message?.content?.trim() || "";
+
+const getFallbackQuestion = (topic, difficulty, role) =>
+  `Explain ${topic} in the context of a ${role} interview at ${difficulty} difficulty.`;
 
 const parseJsonObject = (content) => {
   const normalized = Array.isArray(content)
@@ -51,6 +65,10 @@ const parseJsonObject = (content) => {
 };
 
 const createChatCompletion = async (messages, options = {}) => {
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY is not configured");
+  }
+
   return client.chat.completions.create({
     model: DEFAULT_MODEL,
     temperature: options.temperature ?? 0.4,
@@ -60,14 +78,18 @@ const createChatCompletion = async (messages, options = {}) => {
 };
 
 const generateQuestion = async (topic, difficulty = "medium", role = "SDE") => {
+  const safeTopic = normalizeText(topic, "general computer science");
+  const safeDifficulty = normalizeText(difficulty, "medium");
+  const safeRole = normalizeText(role, "SDE");
+
   const prompt = `
 You are an experienced technical interviewer.
 
 Generate exactly one realistic interview question.
 
-Role: ${role}
-Difficulty: ${difficulty}
-Topic: ${topic}
+Role: ${safeRole}
+Difficulty: ${safeDifficulty}
+Topic: ${safeTopic}
 
 Rules:
 - Ask only one question
@@ -89,7 +111,7 @@ Rules:
     return question;
   } catch (error) {
     logOpenRouterError("generateQuestion", error);
-    return `Explain ${topic} in the context of a ${role} interview at ${difficulty} difficulty.`;
+    return getFallbackQuestion(safeTopic, safeDifficulty, safeRole);
   }
 };
 

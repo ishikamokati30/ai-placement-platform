@@ -11,6 +11,23 @@ const FALLBACK_FEEDBACK = {
     "Re-answer with a clear definition, the core concept, and one practical example.",
 };
 
+const DEFAULT_INTERVIEW_TYPE = "technical";
+const DEFAULT_TOPIC = "general computer science";
+const DEFAULT_DIFFICULTY = "medium";
+const DEFAULT_ROLE = "SDE";
+
+const normalizeText = (value, fallback) => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || fallback;
+};
+
+const buildFallbackQuestion = (topic, difficulty, role) =>
+  `Explain ${topic} in the context of a ${role} interview at ${difficulty} difficulty.`;
+
 const normalizeFeedback = (feedback) => {
   if (!feedback || typeof feedback !== "object") {
     return FALLBACK_FEEDBACK;
@@ -40,29 +57,87 @@ const normalizeFeedback = (feedback) => {
 
 // 🚀 Start Interview
 const startInterview = async (req, res) => {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const userId = req.user?.id || req.user?.userId;
+
+  console.log("[Interview] startInterview request", {
+    userId: userId || null,
+    body,
+  });
+
+  if (!userId) {
+    console.error("[Interview] startInterview missing authenticated user", {
+      decodedUser: req.user || null,
+    });
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const type = normalizeText(body.type, DEFAULT_INTERVIEW_TYPE);
+  const finalTopic = normalizeText(body.topic, DEFAULT_TOPIC);
+  const difficulty = normalizeText(body.difficulty, DEFAULT_DIFFICULTY);
+  const role = normalizeText(body.role, DEFAULT_ROLE);
+
   try {
-    const { type, topic, difficulty, role } = req.body;
+    let interview;
+    try {
+      interview = await interviewService.createInterview(
+        userId,
+        type,
+        finalTopic
+      );
+    } catch (error) {
+      console.error("[Interview] createInterview failed", {
+        userId,
+        type,
+        topic: finalTopic,
+        message: error.message,
+        code: error.code || null,
+        detail: error.detail || null,
+      });
+      throw error;
+    }
 
-    const finalTopic = topic || "general computer science";
+    let question;
+    try {
+      question = await aiService.generateQuestion(
+        finalTopic,
+        difficulty,
+        role
+      );
+    } catch (error) {
+      console.error("[Interview] generateQuestion crashed unexpectedly", {
+        interviewId: interview.id,
+        userId,
+        message: error.message,
+      });
+      question = buildFallbackQuestion(finalTopic, difficulty, role);
+    }
 
-    const interview = await interviewService.createInterview(
-      req.user.id,
-      type,
-      finalTopic
-    );
+    if (typeof question !== "string" || !question.trim()) {
+      console.error("[Interview] generateQuestion returned invalid question", {
+        interviewId: interview.id,
+        userId,
+        questionType: typeof question,
+      });
+      question = buildFallbackQuestion(finalTopic, difficulty, role);
+    }
 
-    const question = await aiService.generateQuestion(
-      finalTopic,
-      difficulty,
-      role
-    );
+    console.log("[Interview] startInterview completed", {
+      interviewId: interview.id,
+      userId,
+      usedFallbackQuestion: question.startsWith("Explain "),
+    });
 
     res.json({
       interviewId: interview.id,
-      question,
+      question: question.trim(),
     });
   } catch (err) {
-    console.error("Start Interview Error:", err);
+    console.error("[Interview] startInterview fatal", {
+      userId,
+      message: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({ message: "Error starting interview" });
   }
 };
