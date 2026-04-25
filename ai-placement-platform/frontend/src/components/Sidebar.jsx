@@ -1,13 +1,53 @@
+import { useNavigate, useLocation } from "react-router-dom";
+
 const navItems = [
-  { label: "Dashboard", active: true, icon: DashboardIcon },
-  { label: "Practice", icon: PracticeIcon },
-  { label: "Interview", icon: InterviewIcon },
-  { label: "Resources", icon: ResourceIcon },
-  { label: "Community", icon: CommunityIcon },
-  { label: "Profile", icon: ProfileIcon },
+  { label: "Dashboard", icon: DashboardIcon, to: "/dashboard" },
+  { label: "Practice", icon: PracticeIcon, to: "/dashboard#quick-actions" },
+  { label: "Interview", icon: InterviewIcon, to: "/interview" },
+  { label: "Resources", icon: ResourceIcon, to: "/dashboard#weak-areas" },
+  { label: "Community", icon: CommunityIcon, to: "/dashboard#progress" },
+  { label: "Profile", icon: ProfileIcon, to: "/dashboard#header" },
 ];
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleNavigation = (target) => {
+    if (target.includes("#")) {
+      const [pathname, hash] = target.split("#");
+
+      navigate(pathname, { state: { scrollTo: hash } });
+
+      if (location.pathname === pathname) {
+        requestAnimationFrame(() => {
+          const element = document.getElementById(hash);
+          element?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
+
+      return;
+    }
+
+    navigate(target);
+  };
+
+  const isActiveItem = (target) => {
+    if (target === "/dashboard") {
+      return location.pathname === "/dashboard" && !location.hash;
+    }
+
+    if (target.includes("#")) {
+      const [pathname, hash] = target.split("#");
+      return (
+        location.pathname === pathname &&
+        (location.hash === `#${hash}` || location.state?.scrollTo === hash)
+      );
+    }
+
+    return location.pathname === target;
+  };
+
   return (
     <aside className="fixed inset-y-5 left-5 z-20 hidden w-24 rounded-[32px] border border-white/45 bg-white/35 px-4 py-6 shadow-[0_22px_70px_rgba(15,23,42,0.14)] backdrop-blur-2xl lg:flex lg:flex-col lg:items-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-sky-500 text-lg font-semibold tracking-tight text-white shadow-[0_16px_40px_rgba(109,40,217,0.35)]">
@@ -17,20 +57,23 @@ export default function Sidebar() {
       <nav className="mt-10 flex w-full flex-1 flex-col items-center gap-3">
         {navItems.map((item) => {
           const Icon = item.icon;
+          const isActive = isActiveItem(item.to);
 
           return (
             <button
               key={item.label}
               type="button"
+              onClick={() => handleNavigation(item.to)}
+              aria-current={isActive ? "page" : undefined}
               className={`group flex w-full flex-col items-center gap-2 rounded-2xl px-2 py-3 text-center transition-all duration-300 ${
-                item.active
+                isActive
                   ? "bg-slate-900 text-white shadow-[0_18px_40px_rgba(15,23,42,0.24)]"
                   : "text-slate-500 hover:bg-white/55 hover:text-slate-900"
               }`}
             >
               <span
                 className={`flex h-10 w-10 items-center justify-center rounded-2xl transition-colors ${
-                  item.active
+                  isActive
                     ? "bg-white/14"
                     : "bg-white/45 group-hover:bg-slate-900/8"
                 }`}

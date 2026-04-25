@@ -1,17 +1,20 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import API, { getApiErrorMessage } from "../services/api";
 import Navbar from "../components/Navbar";
 
 export default function Interview() {
+  const location = useLocation();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [interviewId, setInterviewId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [role, setRole] = useState("SDE");
-  const [type, setType] = useState("technical");
-  const [topic, setTopic] = useState("");
+  const [role, setRole] = useState(location.state?.role || "SDE");
+  const [type, setType] = useState(location.state?.type || "technical");
+  const [topic, setTopic] = useState(location.state?.topic || "");
+  const hasAutoStarted = useRef(false);
 
   const startInterview = async () => {
     setLoading(true);
@@ -71,6 +74,33 @@ export default function Interview() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!location.state) {
+      return;
+    }
+
+    if (location.state.role) {
+      setRole(location.state.role);
+    }
+
+    if (location.state.type) {
+      setType(location.state.type);
+    }
+
+    if (location.state.topic) {
+      setTopic(location.state.topic);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    if (!location.state?.launchOnLoad || hasAutoStarted.current) {
+      return;
+    }
+
+    hasAutoStarted.current = true;
+    startInterview();
+  }, [location.state, role, type, topic]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f5f5" }}>

@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import MainLayout from "../layouts/MainLayout";
 
@@ -27,16 +28,34 @@ const quickActions = [
     title: "Practice Interview",
     description: "Sharpen core concepts with adaptive prompts and realtime feedback.",
     accent: "from-violet-500 to-fuchsia-500",
+    payload: {
+      type: "technical",
+      role: "SDE",
+      topic: "DSA fundamentals",
+      launchOnLoad: true,
+    },
   },
   {
     title: "Company Interview",
     description: "Simulate branded rounds with difficulty tuned to target employers.",
     accent: "from-sky-500 to-cyan-500",
+    payload: {
+      type: "technical",
+      role: "SDE",
+      topic: "system design",
+      launchOnLoad: true,
+    },
   },
   {
     title: "Resume Based Interview",
     description: "Generate personalized questions directly from your achievements.",
     accent: "from-indigo-500 to-violet-500",
+    payload: {
+      type: "hr",
+      role: "SDE",
+      topic: "resume deep dive",
+      launchOnLoad: true,
+    },
   },
 ];
 
@@ -56,6 +75,8 @@ const weakAreas = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   return (
     <MainLayout userName="Ishika">
       <section className="grid gap-5 xl:grid-cols-3">
@@ -80,7 +101,7 @@ export default function Dashboard() {
         ))}
       </section>
 
-      <section className="mt-8">
+      <section id="quick-actions" className="mt-8 scroll-mt-8">
         <div className="mb-4 flex items-end justify-between gap-3">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.28em] text-violet-500">
@@ -116,9 +137,17 @@ export default function Dashboard() {
                 <span className="text-sm font-medium text-slate-500">
                   Launch session
                 </span>
-                <span className="rounded-full border border-white/60 bg-white/60 px-3 py-1 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-300 group-hover:bg-slate-900 group-hover:text-white">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/interview", {
+                      state: action.payload,
+                    })
+                  }
+                  className="cursor-pointer rounded-full border border-white/60 bg-white/60 px-3 py-1 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-300 group-hover:bg-slate-900 group-hover:text-white"
+                >
                   Open
-                </span>
+                </button>
               </div>
             </Card>
           ))}
@@ -126,7 +155,7 @@ export default function Dashboard() {
       </section>
 
       <section className="mt-8 grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-        <Card>
+        <Card id="progress">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-medium uppercase tracking-[0.28em] text-violet-500">
@@ -161,7 +190,7 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        <Card>
+        <Card id="weak-areas">
           <p className="text-sm font-medium uppercase tracking-[0.28em] text-violet-500">
             Weak Areas
           </p>

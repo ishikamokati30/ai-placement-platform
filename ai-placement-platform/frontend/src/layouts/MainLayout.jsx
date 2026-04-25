@@ -1,7 +1,22 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 
 export default function MainLayout({ children, userName }) {
+  const location = useLocation();
+
+  useEffect(() => {
+    const targetId = location.state?.scrollTo;
+
+    if (!targetId) {
+      return;
+    }
+
+    const element = document.getElementById(targetId);
+    element?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [location]);
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(196,181,253,0.75),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(191,219,254,0.75),_transparent_28%),linear-gradient(180deg,_#f8fbff_0%,_#eef2ff_48%,_#f7f9fc_100%)] text-slate-900">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
