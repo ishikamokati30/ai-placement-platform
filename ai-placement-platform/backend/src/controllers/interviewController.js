@@ -9,6 +9,8 @@ const FALLBACK_FEEDBACK = {
   missing_concepts: ["Key concepts were not explained completely"],
   improved_answer:
     "Re-answer with a clear definition, the core concept, and one practical example.",
+  follow_up_question:
+    "Can you explain that concept again with a concrete example?",
 };
 
 const DEFAULT_INTERVIEW_TYPE = "technical";
@@ -33,6 +35,19 @@ const normalizeFeedback = (feedback) => {
     return FALLBACK_FEEDBACK;
   }
 
+  let followUpQuestion = FALLBACK_FEEDBACK.follow_up_question;
+  if (
+    typeof feedback.follow_up_question === "string" &&
+    feedback.follow_up_question.trim()
+  ) {
+    followUpQuestion = feedback.follow_up_question.trim();
+  } else if (
+    typeof feedback.followUpQuestion === "string" &&
+    feedback.followUpQuestion.trim()
+  ) {
+    followUpQuestion = feedback.followUpQuestion.trim();
+  }
+
   return {
     score:
       Number.isFinite(Number(feedback.score)) && Number(feedback.score) >= 0
@@ -52,6 +67,7 @@ const normalizeFeedback = (feedback) => {
       feedback.improved_answer.trim()
         ? feedback.improved_answer.trim()
         : FALLBACK_FEEDBACK.improved_answer,
+    follow_up_question: followUpQuestion,
   };
 };
 
@@ -79,22 +95,34 @@ const startInterview = async (req, res) => {
 
   try {
     let interview;
-    try {
-      interview = await interviewService.createInterview(
-        userId,
-        type,
-        finalTopic
-      );
-    } catch (error) {
-      console.error("[Interview] createInterview failed", {
-        userId,
-        type,
-        topic: finalTopic,
-        message: error.message,
-        code: error.code || null,
-        detail: error.detail || null,
-      });
-      throw error;
+    if (body.interviewId) {
+      interview = await interviewService.getInterviewById(body.interviewId);
+
+      if (!interview) {
+        return res.status(404).json({ message: "Interview not found" });
+      }
+
+      if (String(interview.user_id) !== String(userId)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+    } else {
+      try {
+        interview = await interviewService.createInterview(
+          userId,
+          type,
+          finalTopic
+        );
+      } catch (error) {
+        console.error("[Interview] createInterview failed", {
+          userId,
+          type,
+          topic: finalTopic,
+          message: error.message,
+          code: error.code || null,
+          detail: error.detail || null,
+        });
+        throw error;
+      }
     }
 
     let question;
@@ -125,7 +153,7 @@ const startInterview = async (req, res) => {
     console.log("[Interview] startInterview completed", {
       interviewId: interview.id,
       userId,
-      usedFallbackQuestion: question.startsWith("Explain "),
+      usedFallbackQuestion: question.startsWith("Ask a "),
     });
 
     res.json({
@@ -146,7 +174,7 @@ const startInterview = async (req, res) => {
 const submitAnswer = async (req, res) => {
   try {
     const { interviewId, question, answer } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user?.id || req.user?.userId;
 
     if (!interviewId || !question || !answer) {
       return res.status(400).json({
@@ -249,8 +277,8 @@ const submitAnswer = async (req, res) => {
       });
     }
 
-    let followUp = null;
-    if (feedback.score < 6) {
+    let followUp = feedback.follow_up_question || null;
+    if (!followUp && feedback.score < 6) {
       try {
         followUp = await aiService.generateFollowUp(
           question,

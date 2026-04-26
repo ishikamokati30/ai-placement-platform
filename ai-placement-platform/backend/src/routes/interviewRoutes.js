@@ -9,5 +9,6 @@ const {
 
 router.post("/start", protect, startInterview);
 router.post("/answer", protect, submitAnswer);
+router.post("/submit", protect, submitAnswer);
 
 module.exports = router;

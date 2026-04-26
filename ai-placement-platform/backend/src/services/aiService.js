@@ -24,6 +24,8 @@ const FALLBACK_EVALUATION = {
   missing_concepts: ["Key concepts were not explained completely"],
   improved_answer:
     "Re-answer with a clear definition, the core concept, and one practical example.",
+  follow_up_question:
+    "Can you explain that concept again with a concrete example?",
 };
 
 const logOpenRouterError = (label, error) => {
@@ -49,7 +51,7 @@ const extractMessageText = (response) =>
   response?.choices?.[0]?.message?.content?.trim() || "";
 
 const getFallbackQuestion = (topic, difficulty, role) =>
-  `Explain ${topic} in the context of a ${role} interview at ${difficulty} difficulty.`;
+  `Ask a ${difficulty} level ${topic} interview question for ${role}. Make it realistic like FAANG interviews.`;
 
 const parseJsonObject = (content) => {
   const normalized = Array.isArray(content)
@@ -82,20 +84,9 @@ const generateQuestion = async (topic, difficulty = "medium", role = "SDE") => {
   const safeDifficulty = normalizeText(difficulty, "medium");
   const safeRole = normalizeText(role, "SDE");
 
-  const prompt = `
-You are an experienced technical interviewer.
+  const prompt = `Ask a ${safeDifficulty} level ${safeTopic} interview question for ${safeRole}. Make it realistic like FAANG interviews.
 
-Generate exactly one realistic interview question.
-
-Role: ${safeRole}
-Difficulty: ${safeDifficulty}
-Topic: ${safeTopic}
-
-Rules:
-- Ask only one question
-- Keep it interview-ready and concise
-- Do not include explanation, hints, or multiple parts unless naturally required
-`.trim();
+Return exactly one concise interview question. Do not include hints or explanations.`.trim();
 
   try {
     const response = await createChatCompletion(
@@ -125,6 +116,8 @@ const evaluateAnswer = async (question, answer) => {
         missing_concepts: ["Core explanation of the topic"],
         improved_answer:
           "Start with the main concept, then explain how it works with a simple example.",
+        follow_up_question:
+          "Can you explain the core idea first, then walk through a simple example?",
       };
     }
 
@@ -141,11 +134,13 @@ const evaluateAnswer = async (question, answer) => {
         missing_concepts: ["Fundamental concepts behind the question"],
         improved_answer:
           "Review the topic fundamentals and answer with definition, logic, and one example.",
+        follow_up_question:
+          "Which fundamental concept would you start with if you had to answer this again?",
       };
     }
 
     const prompt = `
-You are a strict technical interviewer.
+You are a strict technical interviewer. Evaluate the answer like a real interviewer.
 
 Question:
 ${question}
@@ -159,7 +154,8 @@ Evaluate the answer and return only valid JSON in this exact shape:
   "strengths": ["string"],
   "weaknesses": ["string"],
   "missing_concepts": ["string"],
-  "improved_answer": "string"
+  "improved_answer": "string",
+  "follow_up_question": "string"
 }
 
 Scoring rules:
@@ -168,6 +164,7 @@ Scoring rules:
 - 6 to 8: correct with reasonable understanding
 - 9 to 10: accurate, complete, and interview-quality
 
+Give a realistic follow-up question that tests the weakest part of the answer.
 Keep strengths, weaknesses, and missing_concepts concise.
 `.trim();
 
@@ -193,6 +190,11 @@ Keep strengths, weaknesses, and missing_concepts concise.
         typeof parsed.improved_answer === "string" && parsed.improved_answer.trim()
           ? parsed.improved_answer.trim()
           : FALLBACK_EVALUATION.improved_answer,
+      follow_up_question:
+        typeof parsed.follow_up_question === "string" &&
+        parsed.follow_up_question.trim()
+          ? parsed.follow_up_question.trim()
+          : FALLBACK_EVALUATION.follow_up_question,
     };
   } catch (error) {
     logOpenRouterError("evaluateAnswer", error);

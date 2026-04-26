@@ -1,37 +1,99 @@
-import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import API, { getApiErrorMessage } from "../services/api";
 import Navbar from "../components/Navbar";
 
+const DEFAULT_TOTAL_QUESTIONS = 5;
+
+const roles = ["SDE", "Frontend Engineer", "Backend Engineer", "Data Analyst"];
+const difficulties = ["Easy", "Medium", "Hard"];
+
+const getFeedbackValue = (source, snakeKey, camelKey, fallback) =>
+  source?.[snakeKey] ?? source?.[camelKey] ?? fallback;
+
+const toList = (value) => (Array.isArray(value) && value.length ? value : []);
+
 export default function Interview() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const hasAutoStarted = useRef(false);
+
+  const [step, setStep] = useState("setup");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState(null);
-  const [interviewId, setInterviewId] = useState(null);
+  const [followUpQuestion, setFollowUpQuestion] = useState("");
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [totalQuestions] = useState(DEFAULT_TOTAL_QUESTIONS);
   const [loading, setLoading] = useState(false);
+  const [interviewId, setInterviewId] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [scores, setScores] = useState([]);
+  const [weakAreas, setWeakAreas] = useState([]);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [role, setRole] = useState(location.state?.role || "SDE");
   const [type, setType] = useState(location.state?.type || "technical");
   const [topic, setTopic] = useState(location.state?.topic || "");
-  const hasAutoStarted = useRef(false);
+  const [difficulty, setDifficulty] = useState("Medium");
 
-  const startInterview = async () => {
+  const averageScore = useMemo(() => {
+    if (!scores.length) return 0;
+    const total = scores.reduce((sum, score) => sum + Number(score || 0), 0);
+    return Math.round((total / scores.length) * 10) / 10;
+  }, [scores]);
+
+  const formattedTime = useMemo(() => {
+    const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
+    const seconds = String(elapsedSeconds % 60).padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }, [elapsedSeconds]);
+
+  const normalizedFeedback = useMemo(() => {
+    if (!feedback) return null;
+
+    return {
+      score: Number(feedback.score || 0),
+      strengths: toList(feedback.strengths),
+      weaknesses: toList(feedback.weaknesses),
+      missingConcepts: toList(
+        getFeedbackValue(feedback, "missing_concepts", "missingConcepts", [])
+      ),
+      improvedAnswer: getFeedbackValue(
+        feedback,
+        "improved_answer",
+        "improvedAnswer",
+        ""
+      ),
+    };
+  }, [feedback]);
+
+  const startInterview = async ({ preserveProgress = false } = {}) => {
     setLoading(true);
     setErrorMessage("");
 
     try {
       const res = await API.post("/interview/start", {
+        interviewId: preserveProgress ? interviewId : undefined,
         type,
         topic,
-        difficulty: "medium",
+        difficulty: difficulty.toLowerCase(),
         role,
       });
 
-      setQuestion(res.data.question);
       setInterviewId(res.data.interviewId);
-      setFeedback(null);
+      setQuestion(res.data.question || "");
       setAnswer("");
+      setFeedback(null);
+      setFollowUpQuestion("");
+      setElapsedSeconds(0);
+
+      if (!preserveProgress) {
+        setScores([]);
+        setWeakAreas([]);
+        setCurrentQuestionIndex(0);
+      }
+
+      setStep("interview");
     } catch (err) {
       const message = getApiErrorMessage(err);
       console.error("Start interview failed:", {
@@ -55,13 +117,29 @@ export default function Interview() {
     setErrorMessage("");
 
     try {
-      const res = await API.post("/interview/answer", {
+      const res = await API.post("/interview/submit", {
         interviewId,
         question,
         answer,
       });
 
-      setFeedback(res.data);
+      const nextFeedback = res.data.feedback || {};
+      const nextFollowUp = res.data.followUpQuestion || "";
+      const score = Number(nextFeedback.score || 0);
+      const weaknesses = toList(nextFeedback.weaknesses);
+      const missingConcepts = toList(
+        getFeedbackValue(nextFeedback, "missing_concepts", "missingConcepts", [])
+      );
+
+      setFeedback(nextFeedback);
+      setFollowUpQuestion(nextFollowUp);
+      setScores((previous) => [...previous, score]);
+      setWeakAreas((previous) => [
+        ...previous,
+        ...weaknesses,
+        ...missingConcepts,
+      ]);
+      setStep("feedback");
     } catch (err) {
       const message = getApiErrorMessage(err);
       console.error("Submit answer failed:", {
@@ -75,192 +153,519 @@ export default function Interview() {
     }
   };
 
-  useEffect(() => {
-    if (!location.state) {
+  const goToNextQuestion = async () => {
+    const nextIndex = currentQuestionIndex + 1;
+
+    if (nextIndex >= totalQuestions) {
+      setStep("completed");
       return;
     }
 
-    if (location.state.role) {
-      setRole(location.state.role);
+    setCurrentQuestionIndex(nextIndex);
+    setAnswer("");
+    setFeedback(null);
+    setElapsedSeconds(0);
+
+    if (followUpQuestion) {
+      setQuestion(followUpQuestion);
+      setFollowUpQuestion("");
+      setStep("interview");
+      return;
     }
 
-    if (location.state.type) {
-      setType(location.state.type);
-    }
+    await startInterview({ preserveProgress: true });
+  };
 
-    if (location.state.topic) {
-      setTopic(location.state.topic);
-    }
+  const endInterview = () => {
+    setStep("completed");
+  };
+
+  useEffect(() => {
+    if (!location.state) return;
+
+    if (location.state.role) setRole(location.state.role);
+    if (location.state.type) setType(location.state.type);
+    if (location.state.topic) setTopic(location.state.topic);
   }, [location.state]);
 
   useEffect(() => {
-    if (!location.state?.launchOnLoad || hasAutoStarted.current) {
-      return;
-    }
+    if (step !== "interview") return undefined;
+
+    const timer = window.setInterval(() => {
+      setElapsedSeconds((current) => current + 1);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [step, question]);
+
+  useEffect(() => {
+    if (!location.state?.launchOnLoad || hasAutoStarted.current) return;
 
     hasAutoStarted.current = true;
     startInterview();
-  }, [location.state, role, type, topic]);
+  }, [location.state, role, type, topic, difficulty]);
+
+  const uniqueWeakAreas = [...new Set(weakAreas)].slice(0, 5);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f5f5" }}>
+    <div style={styles.page}>
       <Navbar />
-      <main style={{ padding: "40px", maxWidth: "900px", margin: "0 auto" }}>
-        <h1>AI Mock Interview</h1>
-
-        <section style={styles.controls}>
-          <label style={styles.label}>
-            Role
-            <select
-              style={styles.input}
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-            >
-              <option value="SDE">SDE</option>
-              <option value="Data Analyst">Data Analyst</option>
-            </select>
-          </label>
-
-          <label style={styles.label}>
-            Type
-            <select
-              style={styles.input}
-              value={type}
-              onChange={(event) => setType(event.target.value)}
-            >
-              <option value="technical">Technical</option>
-              <option value="hr">HR</option>
-            </select>
-          </label>
-
-          <label style={styles.label}>
-            Topic
-            <input
-              style={styles.input}
-              placeholder="e.g. DBMS, DSA, OS"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-            />
-          </label>
-        </section>
-
+      <main style={styles.main}>
         {errorMessage ? <p style={styles.error}>{errorMessage}</p> : null}
 
-        <button style={styles.primaryButton} onClick={startInterview} disabled={loading}>
-          {loading ? "Working..." : "Start Interview"}
-        </button>
+        <div style={styles.transition}>
+          {step === "setup" ? (
+            <section style={styles.heroCard}>
+              <div>
+                <p style={styles.eyebrow}>ElevateAI practice mode</p>
+                <h1 style={styles.title}>Practice Interview</h1>
+                <p style={styles.subtitle}>
+                  Configure a focused session and answer one realistic question
+                  at a time.
+                </p>
+              </div>
 
-        {question ? (
-          <section style={styles.section}>
-            <h2>Question</h2>
-            <p>{question}</p>
+              <div style={styles.setupGrid}>
+                <label style={styles.label}>
+                  Role
+                  <select
+                    style={styles.input}
+                    value={role}
+                    onChange={(event) => setRole(event.target.value)}
+                  >
+                    {roles.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <textarea
-              style={styles.textarea}
-              rows="6"
-              placeholder="Type your answer..."
-              value={answer}
-              onChange={(event) => setAnswer(event.target.value)}
-            />
+                <label style={styles.label}>
+                  Topic
+                  <input
+                    style={styles.input}
+                    placeholder="e.g. DBMS, DSA, OS"
+                    value={topic}
+                    onChange={(event) => setTopic(event.target.value)}
+                  />
+                </label>
 
-            <button style={styles.primaryButton} onClick={submitAnswer} disabled={loading}>
-              {loading ? "Working..." : "Submit Answer"}
-            </button>
-          </section>
-        ) : null}
+                <label style={styles.label}>
+                  Difficulty
+                  <select
+                    style={styles.input}
+                    value={difficulty}
+                    onChange={(event) => setDifficulty(event.target.value)}
+                  >
+                    {difficulties.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
-        {feedback?.feedback ? (
-          <section style={styles.section}>
-            <h2>Feedback</h2>
+              <button
+                style={styles.primaryButton}
+                onClick={() => startInterview()}
+                disabled={loading}
+              >
+                {loading ? "Starting..." : "Start Interview"}
+              </button>
+            </section>
+          ) : null}
 
-            <p>
-              <b>Score:</b> {feedback.feedback.score}/10
-            </p>
+          {step === "interview" ? (
+            <section style={styles.stack}>
+              <header style={styles.interviewHeader}>
+                <div>
+                  <p style={styles.eyebrow}>Practice Interview</p>
+                  <h1 style={styles.compactTitle}>Question session</h1>
+                </div>
+                <div style={styles.headerStats}>
+                  <span style={styles.statPill}>
+                    Question {currentQuestionIndex + 1} / {totalQuestions}
+                  </span>
+                  <span style={styles.statPill}>{formattedTime}</span>
+                </div>
+              </header>
 
-            <h3>Strengths</h3>
-            <ul>
-              {feedback.feedback.strengths.map((item, index) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ul>
+              <article style={styles.card}>
+                <p style={styles.cardLabel}>Question</p>
+                <h2 style={styles.question}>{question}</h2>
+              </article>
 
-            <h3>Weaknesses</h3>
-            <ul>
-              {feedback.feedback.weaknesses.map((item, index) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ul>
+              <article style={styles.card}>
+                <label style={styles.label}>
+                  Your answer
+                  <textarea
+                    style={styles.textarea}
+                    rows="9"
+                    placeholder="Explain your approach..."
+                    value={answer}
+                    onChange={(event) => setAnswer(event.target.value)}
+                  />
+                </label>
+                <button
+                  style={styles.primaryButton}
+                  onClick={submitAnswer}
+                  disabled={loading || !answer.trim()}
+                >
+                  {loading ? "Evaluating..." : "Submit Answer"}
+                </button>
+              </article>
+            </section>
+          ) : null}
 
-            <h3>Missing Concepts</h3>
-            <ul>
-              {feedback.feedback.missing_concepts.map((item, index) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ul>
+          {step === "feedback" && normalizedFeedback ? (
+            <section style={styles.stack}>
+              <header style={styles.interviewHeader}>
+                <div>
+                  <p style={styles.eyebrow}>Interviewer feedback</p>
+                  <h1 style={styles.compactTitle}>
+                    Question {currentQuestionIndex + 1} review
+                  </h1>
+                </div>
+                <div style={styles.scoreBadge}>
+                  <strong style={styles.scoreValue}>{normalizedFeedback.score}</strong>
+                  <span style={styles.scoreSuffix}>/10</span>
+                </div>
+              </header>
 
-            <h3>Improved Answer</h3>
-            <p>{feedback.feedback.improved_answer}</p>
+              <div style={styles.feedbackGrid}>
+                <FeedbackList title="Strengths" items={normalizedFeedback.strengths} />
+                <FeedbackList title="Weaknesses" items={normalizedFeedback.weaknesses} />
+                <FeedbackList
+                  title="Missing Concepts"
+                  items={normalizedFeedback.missingConcepts}
+                />
+              </div>
 
-            {feedback.followUpQuestion ? (
-              <>
-                <h3>Follow-up Question</h3>
-                <p>{feedback.followUpQuestion}</p>
-              </>
-            ) : null}
-          </section>
-        ) : null}
+              <article style={styles.card}>
+                <p style={styles.cardLabel}>Improved Answer</p>
+                <p style={styles.bodyText}>
+                  {normalizedFeedback.improvedAnswer ||
+                    "Add a clearer structure, cover the key concepts, and support the answer with an example."}
+                </p>
+              </article>
+
+              {followUpQuestion ? (
+                <article style={styles.card}>
+                  <p style={styles.cardLabel}>Follow-up Question</p>
+                  <p style={styles.bodyText}>{followUpQuestion}</p>
+                </article>
+              ) : null}
+
+              <div style={styles.actions}>
+                <button style={styles.primaryButton} onClick={goToNextQuestion}>
+                  Next Question
+                </button>
+                <button style={styles.secondaryButton} onClick={endInterview}>
+                  End Interview
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          {step === "completed" ? (
+            <section style={styles.heroCard}>
+              <p style={styles.eyebrow}>Session summary</p>
+              <h1 style={styles.title}>Interview Completed 🎉</h1>
+
+              <div style={styles.summaryGrid}>
+                <div style={styles.summaryMetric}>
+                  <span>Average Score</span>
+                  <strong>{averageScore || 0}/10</strong>
+                </div>
+                <div style={styles.summaryMetric}>
+                  <span>Answered</span>
+                  <strong>
+                    {scores.length}/{totalQuestions}
+                  </strong>
+                </div>
+              </div>
+
+              <article style={styles.card}>
+                <p style={styles.cardLabel}>Key Weak Areas</p>
+                {uniqueWeakAreas.length ? (
+                  <ul style={styles.list}>
+                    {uniqueWeakAreas.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={styles.bodyText}>
+                    No major weak areas were detected in this session.
+                  </p>
+                )}
+              </article>
+
+              <button
+                style={styles.primaryButton}
+                onClick={() => navigate("/dashboard")}
+              >
+                Go to Dashboard
+              </button>
+            </section>
+          ) : null}
+        </div>
       </main>
     </div>
   );
 }
 
+function FeedbackList({ title, items }) {
+  return (
+    <article style={styles.card}>
+      <p style={styles.cardLabel}>{title}</p>
+      {items.length ? (
+        <ul style={styles.list}>
+          {items.map((item, index) => (
+            <li key={`${title}-${index}`}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p style={styles.bodyText}>No specific points provided.</p>
+      )}
+    </article>
+  );
+}
+
 const styles = {
-  controls: {
+  page: {
+    minHeight: "100vh",
+    color: "#172033",
+    background:
+      "radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 34%), linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%)",
+  },
+  main: {
+    width: "min(1040px, calc(100% - 32px))",
+    margin: "0 auto",
+    padding: "40px 0 56px",
+  },
+  transition: {
+    animation: "fadeIn 220ms ease",
+  },
+  heroCard: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "16px",
-    margin: "20px 0",
+    gap: "26px",
+    padding: "32px",
+    border: "1px solid rgba(148, 163, 184, 0.36)",
+    borderRadius: "8px",
+    background: "rgba(255, 255, 255, 0.78)",
+    boxShadow: "0 24px 70px rgba(15, 23, 42, 0.10)",
+    backdropFilter: "blur(18px)",
+  },
+  setupGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+    gap: "18px",
+  },
+  stack: {
+    display: "grid",
+    gap: "18px",
+  },
+  interviewHeader: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "18px",
+    padding: "24px",
+    border: "1px solid rgba(148, 163, 184, 0.34)",
+    borderRadius: "8px",
+    background: "rgba(255, 255, 255, 0.74)",
+    boxShadow: "0 18px 55px rgba(15, 23, 42, 0.08)",
+    backdropFilter: "blur(16px)",
+  },
+  headerStats: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: "10px",
+  },
+  statPill: {
+    minWidth: "108px",
+    padding: "10px 12px",
+    border: "1px solid #d8e0ea",
+    borderRadius: "8px",
+    background: "#ffffff",
+    color: "#334155",
+    fontSize: "14px",
+    fontWeight: 700,
+    textAlign: "center",
+  },
+  card: {
+    padding: "22px",
+    border: "1px solid rgba(148, 163, 184, 0.34)",
+    borderRadius: "8px",
+    background: "rgba(255, 255, 255, 0.82)",
+    boxShadow: "0 16px 44px rgba(15, 23, 42, 0.07)",
+    backdropFilter: "blur(14px)",
+  },
+  title: {
+    margin: 0,
+    fontSize: "42px",
+    lineHeight: 1.08,
+    letterSpacing: 0,
+    color: "#0f172a",
+  },
+  compactTitle: {
+    margin: "4px 0 0",
+    fontSize: "28px",
+    lineHeight: 1.16,
+    letterSpacing: 0,
+    color: "#0f172a",
+  },
+  subtitle: {
+    maxWidth: "620px",
+    margin: "12px 0 0",
+    color: "#526173",
+    fontSize: "16px",
+    lineHeight: 1.6,
+  },
+  eyebrow: {
+    margin: 0,
+    color: "#2563eb",
+    fontSize: "13px",
+    fontWeight: 800,
+    letterSpacing: 0,
+    textTransform: "uppercase",
+  },
+  cardLabel: {
+    margin: "0 0 10px",
+    color: "#64748b",
+    fontSize: "13px",
+    fontWeight: 800,
+    letterSpacing: 0,
+    textTransform: "uppercase",
+  },
+  question: {
+    margin: 0,
+    fontSize: "24px",
+    lineHeight: 1.45,
+    letterSpacing: 0,
+    color: "#111827",
+  },
+  bodyText: {
+    margin: 0,
+    color: "#334155",
+    fontSize: "15px",
+    lineHeight: 1.65,
   },
   label: {
     display: "grid",
-    gap: "6px",
-    fontWeight: 600,
+    gap: "8px",
+    color: "#1f2937",
+    fontWeight: 700,
   },
   input: {
-    height: "40px",
+    width: "100%",
+    minHeight: "44px",
     border: "1px solid #cbd5e1",
-    borderRadius: "6px",
-    padding: "0 10px",
+    borderRadius: "8px",
+    padding: "0 12px",
+    background: "#ffffff",
+    color: "#111827",
+    boxSizing: "border-box",
+    outlineColor: "#2563eb",
   },
   textarea: {
     width: "100%",
     border: "1px solid #cbd5e1",
-    borderRadius: "6px",
-    padding: "12px",
+    borderRadius: "8px",
+    padding: "14px",
+    background: "#ffffff",
+    color: "#111827",
+    font: "inherit",
+    lineHeight: 1.55,
     boxSizing: "border-box",
     resize: "vertical",
-  },
-  section: {
-    marginTop: "24px",
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    padding: "20px",
+    outlineColor: "#2563eb",
   },
   primaryButton: {
-    marginTop: "12px",
-    padding: "10px 18px",
+    width: "fit-content",
+    minWidth: "154px",
+    minHeight: "44px",
+    padding: "11px 18px",
     background: "#2563eb",
     color: "#ffffff",
     border: "none",
-    borderRadius: "6px",
+    borderRadius: "8px",
+    fontWeight: 800,
+    cursor: "pointer",
+    boxShadow: "0 12px 28px rgba(37, 99, 235, 0.25)",
+  },
+  secondaryButton: {
+    width: "fit-content",
+    minWidth: "140px",
+    minHeight: "44px",
+    padding: "11px 18px",
+    background: "#ffffff",
+    color: "#334155",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
+    fontWeight: 800,
     cursor: "pointer",
   },
+  feedbackGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "18px",
+  },
+  list: {
+    display: "grid",
+    gap: "9px",
+    margin: 0,
+    paddingLeft: "18px",
+    color: "#334155",
+    lineHeight: 1.55,
+  },
+  scoreBadge: {
+    display: "grid",
+    placeItems: "center",
+    width: "92px",
+    height: "92px",
+    borderRadius: "8px",
+    background: "#0f172a",
+    color: "#ffffff",
+  },
+  scoreValue: {
+    fontSize: "34px",
+    lineHeight: 1,
+  },
+  scoreSuffix: {
+    fontSize: "13px",
+    fontWeight: 800,
+    color: "#cbd5e1",
+  },
+  actions: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "12px",
+  },
+  summaryGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "16px",
+  },
+  summaryMetric: {
+    display: "grid",
+    gap: "8px",
+    padding: "20px",
+    border: "1px solid rgba(148, 163, 184, 0.34)",
+    borderRadius: "8px",
+    background: "#ffffff",
+  },
   error: {
-    color: "#b91c1c",
+    margin: "0 0 18px",
+    color: "#991b1b",
     background: "#fee2e2",
     border: "1px solid #fecaca",
-    borderRadius: "6px",
-    padding: "10px",
+    borderRadius: "8px",
+    padding: "12px",
+    fontWeight: 700,
   },
 };
