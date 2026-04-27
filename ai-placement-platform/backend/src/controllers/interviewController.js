@@ -4,9 +4,13 @@ const adaptiveService = require("../services/adaptiveService");
 
 const FALLBACK_FEEDBACK = {
   score: 5,
+  communication_score: 5,
+  technical_score: 5,
   strengths: ["Basic attempt made"],
   weaknesses: ["Needs clearer explanation and stronger technical depth"],
   missing_concepts: ["Key concepts were not explained completely"],
+  improvement:
+    "Structure the answer with context, tradeoffs, and a concrete example.",
   improved_answer:
     "Re-answer with a clear definition, the core concept, and one practical example.",
   follow_up_question:
@@ -30,6 +34,17 @@ const normalizeText = (value, fallback) => {
 const buildFallbackQuestion = (topic, difficulty, role) =>
   `Explain ${topic} in the context of a ${role} interview at ${difficulty} difficulty.`;
 
+const getNumericFeedbackValue = (...values) => {
+  for (const value of values) {
+    const numberValue = Number(value);
+    if (Number.isFinite(numberValue) && numberValue >= 0) {
+      return numberValue;
+    }
+  }
+
+  return null;
+};
+
 const normalizeFeedback = (feedback) => {
   if (!feedback || typeof feedback !== "object") {
     return FALLBACK_FEEDBACK;
@@ -50,9 +65,17 @@ const normalizeFeedback = (feedback) => {
 
   return {
     score:
-      Number.isFinite(Number(feedback.score)) && Number(feedback.score) >= 0
-        ? Number(feedback.score)
-        : FALLBACK_FEEDBACK.score,
+      getNumericFeedbackValue(feedback.score) ?? FALLBACK_FEEDBACK.score,
+    communication_score:
+      getNumericFeedbackValue(
+        feedback.communication_score,
+        feedback.communicationScore
+      ) ?? FALLBACK_FEEDBACK.communication_score,
+    technical_score:
+      getNumericFeedbackValue(
+        feedback.technical_score,
+        feedback.technicalScore
+      ) ?? FALLBACK_FEEDBACK.technical_score,
     strengths: Array.isArray(feedback.strengths)
       ? feedback.strengths
       : FALLBACK_FEEDBACK.strengths,
@@ -62,6 +85,10 @@ const normalizeFeedback = (feedback) => {
     missing_concepts: Array.isArray(feedback.missing_concepts)
       ? feedback.missing_concepts
       : FALLBACK_FEEDBACK.missing_concepts,
+    improvement:
+      typeof feedback.improvement === "string" && feedback.improvement.trim()
+        ? feedback.improvement.trim()
+        : FALLBACK_FEEDBACK.improvement,
     improved_answer:
       typeof feedback.improved_answer === "string" &&
       feedback.improved_answer.trim()
@@ -92,6 +119,10 @@ const startInterview = async (req, res) => {
   const finalTopic = normalizeText(body.topic, DEFAULT_TOPIC);
   const difficulty = normalizeText(body.difficulty, DEFAULT_DIFFICULTY);
   const role = normalizeText(body.role, DEFAULT_ROLE);
+  const company = normalizeText(body.company, "");
+  const round = normalizeText(body.currentRound || body.round, "");
+  const storedTopic =
+    type === "company" && company ? `${company} ${role}` : finalTopic;
 
   try {
     let interview;
@@ -110,7 +141,8 @@ const startInterview = async (req, res) => {
         interview = await interviewService.createInterview(
           userId,
           type,
-          finalTopic
+          storedTopic,
+          { company, role }
         );
       } catch (error) {
         console.error("[Interview] createInterview failed", {
@@ -128,9 +160,14 @@ const startInterview = async (req, res) => {
     let question;
     try {
       question = await aiService.generateQuestion(
-        finalTopic,
+        storedTopic,
         difficulty,
-        role
+        role,
+        {
+          type,
+          company,
+          round,
+        }
       );
     } catch (error) {
       console.error("[Interview] generateQuestion crashed unexpectedly", {
@@ -138,7 +175,7 @@ const startInterview = async (req, res) => {
         userId,
         message: error.message,
       });
-      question = buildFallbackQuestion(finalTopic, difficulty, role);
+      question = buildFallbackQuestion(storedTopic, difficulty, role);
     }
 
     if (typeof question !== "string" || !question.trim()) {
@@ -147,7 +184,7 @@ const startInterview = async (req, res) => {
         userId,
         questionType: typeof question,
       });
-      question = buildFallbackQuestion(finalTopic, difficulty, role);
+      question = buildFallbackQuestion(storedTopic, difficulty, role);
     }
 
     console.log("[Interview] startInterview completed", {
@@ -173,7 +210,16 @@ const startInterview = async (req, res) => {
 // 🧠 Submit Answer
 const submitAnswer = async (req, res) => {
   try {
-    const { interviewId, question, answer } = req.body;
+    const {
+      interviewId,
+      question,
+      answer,
+      type,
+      company,
+      role,
+      currentRound,
+      round,
+    } = req.body;
     const userId = req.user?.id || req.user?.userId;
 
     if (!interviewId || !question || !answer) {
@@ -197,7 +243,12 @@ const submitAnswer = async (req, res) => {
     let feedback;
     try {
       feedback = normalizeFeedback(
-        await aiService.evaluateAnswer(question, answer)
+        await aiService.evaluateAnswer(question, answer, {
+          type,
+          company,
+          role,
+          round: currentRound || round,
+        })
       );
     } catch (error) {
       console.error("[Interview] evaluateAnswer crashed", {
@@ -263,7 +314,7 @@ const submitAnswer = async (req, res) => {
       return res.status(404).json({ message: "Interview not found" });
     }
 
-    const topic = interview.topic || "general computer science";
+    const topic = interview.topic || company || "general computer science";
 
     try {
       await adaptiveService.updateWeakArea(userId, topic, feedback.score);

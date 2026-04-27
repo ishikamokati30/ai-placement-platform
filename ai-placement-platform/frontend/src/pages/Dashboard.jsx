@@ -28,6 +28,7 @@ const quickActions = [
     title: "Practice Interview",
     description: "Sharpen core concepts with adaptive prompts and realtime feedback.",
     accent: "from-violet-500 to-fuchsia-500",
+    path: "/interview",
     payload: {
       type: "technical",
       role: "SDE",
@@ -39,17 +40,13 @@ const quickActions = [
     title: "Company Interview",
     description: "Simulate branded rounds with difficulty tuned to target employers.",
     accent: "from-sky-500 to-cyan-500",
-    payload: {
-      type: "technical",
-      role: "SDE",
-      topic: "system design",
-      launchOnLoad: true,
-    },
+    path: "/interview/company",
   },
   {
     title: "Resume Based Interview",
     description: "Generate personalized questions directly from your achievements.",
     accent: "from-indigo-500 to-violet-500",
+    path: "/interview",
     payload: {
       type: "hr",
       role: "SDE",
@@ -140,7 +137,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() =>
-                    navigate("/interview", {
+                    navigate(action.path, {
                       state: action.payload,
                     })
                   }

@@ -19,13 +19,24 @@ const client = new OpenAI({
 
 const FALLBACK_EVALUATION = {
   score: 5,
+  communication_score: 5,
+  technical_score: 5,
   strengths: ["Basic attempt made"],
   weaknesses: ["Needs clearer explanation and stronger technical depth"],
   missing_concepts: ["Key concepts were not explained completely"],
+  improvement:
+    "Structure the answer with context, tradeoffs, and a concrete example.",
   improved_answer:
     "Re-answer with a clear definition, the core concept, and one practical example.",
   follow_up_question:
     "Can you explain that concept again with a concrete example?",
+};
+
+const COMPANY_SIGNALS = {
+  Amazon: "Leadership Principles, ownership, customer obsession, and bias for action",
+  Google: "problem solving, system thinking, clarity, and scalable reasoning",
+  Microsoft: "collaboration, design thinking, product empathy, and growth mindset",
+  Flipkart: "customer impact, ownership, frugal execution, and marketplace scale",
 };
 
 const logOpenRouterError = (label, error) => {
@@ -53,6 +64,9 @@ const extractMessageText = (response) =>
 const getFallbackQuestion = (topic, difficulty, role) =>
   `Ask a ${difficulty} level ${topic} interview question for ${role}. Make it realistic like FAANG interviews.`;
 
+const getCompanyFallbackQuestion = (company, role, roundLabel) =>
+  `In this ${company} ${role} interview, answer this ${roundLabel} question: Tell me about a decision you made under ambiguity and how you handled tradeoffs.`;
+
 const parseJsonObject = (content) => {
   const normalized = Array.isArray(content)
     ? content.map((part) => part?.text || "").join("")
@@ -79,10 +93,55 @@ const createChatCompletion = async (messages, options = {}) => {
   });
 };
 
-const generateQuestion = async (topic, difficulty = "medium", role = "SDE") => {
+const generateQuestion = async (
+  topic,
+  difficulty = "medium",
+  role = "SDE",
+  options = {}
+) => {
   const safeTopic = normalizeText(topic, "general computer science");
   const safeDifficulty = normalizeText(difficulty, "medium");
   const safeRole = normalizeText(role, "SDE");
+  const safeCompany = normalizeText(options.company, "Amazon");
+  const roundLabel = normalizeText(options.round, "Round 1: HR / Intro");
+
+  if (options.type === "company") {
+    const companySignals =
+      COMPANY_SIGNALS[safeCompany] || "company values, role fit, and technical depth";
+
+    const prompt = `
+Simulate a real ${safeCompany} interview for a ${safeRole} candidate.
+
+Follow this structure:
+1. HR intro question
+2. Behavioral question based on company values
+3. Technical question
+4. Follow-up deep dive
+
+Current round: ${roundLabel}
+Company-specific focus: ${companySignals}
+
+Ask ONLY ONE question at a time.
+Return only the interview question, with no explanation or bullets.
+`.trim();
+
+    try {
+      const response = await createChatCompletion(
+        [{ role: "user", content: prompt }],
+        { temperature: 0.72, maxTokens: 180 }
+      );
+
+      const question = extractMessageText(response);
+      if (!question) {
+        throw new Error("Empty company question response");
+      }
+
+      return question;
+    } catch (error) {
+      logOpenRouterError("generateCompanyQuestion", error);
+      return getCompanyFallbackQuestion(safeCompany, safeRole, roundLabel);
+    }
+  }
 
   const prompt = `Ask a ${safeDifficulty} level ${safeTopic} interview question for ${safeRole}. Make it realistic like FAANG interviews.
 
@@ -106,14 +165,22 @@ Return exactly one concise interview question. Do not include hints or explanati
   }
 };
 
-const evaluateAnswer = async (question, answer) => {
+const evaluateAnswer = async (question, answer, options = {}) => {
   try {
+    const safeCompany = normalizeText(options.company, "the company");
+    const safeRole = normalizeText(options.role, "SDE");
+    const roundLabel = normalizeText(options.round, "the current round");
+
     if (!answer || answer.trim().length < 10) {
       return {
         score: 1,
+        communication_score: 1,
+        technical_score: options.type === "company" ? 1 : 0,
         strengths: [],
         weaknesses: ["Answer is too short to demonstrate understanding"],
         missing_concepts: ["Core explanation of the topic"],
+        improvement:
+          "Give a complete answer with situation, action, reasoning, and result.",
         improved_answer:
           "Start with the main concept, then explain how it works with a simple example.",
         follow_up_question:
@@ -129,9 +196,13 @@ const evaluateAnswer = async (question, answer) => {
     ) {
       return {
         score: 1,
+        communication_score: 1,
+        technical_score: options.type === "company" ? 1 : 0,
         strengths: [],
         weaknesses: ["No clear understanding was demonstrated"],
         missing_concepts: ["Fundamental concepts behind the question"],
+        improvement:
+          "Start with what you know, clarify assumptions, and reason through the problem.",
         improved_answer:
           "Review the topic fundamentals and answer with definition, logic, and one example.",
         follow_up_question:
@@ -139,7 +210,40 @@ const evaluateAnswer = async (question, answer) => {
       };
     }
 
-    const prompt = `
+    const prompt =
+      options.type === "company"
+        ? `
+Evaluate answer like a ${safeCompany} interviewer.
+
+Company: ${safeCompany}
+Role: ${safeRole}
+Round: ${roundLabel}
+
+Question:
+${question}
+
+Candidate Answer:
+${answer}
+
+Return only valid JSON in this exact shape:
+{
+  "score": number,
+  "communication_score": number,
+  "technical_score": number,
+  "strengths": ["string"],
+  "weaknesses": ["string"],
+  "improvement": "string",
+  "follow_up_question": "string"
+}
+
+Scoring rules:
+- score, communication_score, and technical_score must be 1 to 10
+- Judge communication for structure, specificity, and interviewer clarity
+- Judge technical_score for technical correctness where relevant; for HR rounds, score role reasoning and depth
+- Include company-specific expectations in the feedback
+- Give one realistic follow-up question
+`.trim()
+        : `
 You are a strict technical interviewer. Evaluate the answer like a real interviewer.
 
 Question:
@@ -177,6 +281,14 @@ Keep strengths, weaknesses, and missing_concepts concise.
 
     return {
       score: Number(parsed.score) || FALLBACK_EVALUATION.score,
+      communication_score:
+        Number(parsed.communication_score) ||
+        Number(parsed.communicationScore) ||
+        FALLBACK_EVALUATION.communication_score,
+      technical_score:
+        Number(parsed.technical_score) ||
+        Number(parsed.technicalScore) ||
+        FALLBACK_EVALUATION.technical_score,
       strengths: Array.isArray(parsed.strengths)
         ? parsed.strengths
         : FALLBACK_EVALUATION.strengths,
@@ -186,6 +298,10 @@ Keep strengths, weaknesses, and missing_concepts concise.
       missing_concepts: Array.isArray(parsed.missing_concepts)
         ? parsed.missing_concepts
         : FALLBACK_EVALUATION.missing_concepts,
+      improvement:
+        typeof parsed.improvement === "string" && parsed.improvement.trim()
+          ? parsed.improvement.trim()
+          : FALLBACK_EVALUATION.improvement,
       improved_answer:
         typeof parsed.improved_answer === "string" && parsed.improved_answer.trim()
           ? parsed.improved_answer.trim()

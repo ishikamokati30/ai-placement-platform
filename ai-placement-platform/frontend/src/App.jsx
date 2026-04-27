@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Interview from "./pages/Interview";
+import CompanyInterview from "./pages/interview/Company";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -27,6 +28,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Interview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/interview/company"
+          element={
+            <ProtectedRoute>
+              <CompanyInterview />
             </ProtectedRoute>
           }
         />
