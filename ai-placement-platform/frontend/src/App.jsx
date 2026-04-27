@@ -3,6 +3,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Interview from "./pages/Interview";
 import CompanyInterview from "./pages/interview/Company";
+import ResumeInterview from "./pages/interview/Resume";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -36,6 +37,14 @@ function App() {
           element={
             <ProtectedRoute>
               <CompanyInterview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/interview/resume"
+          element={
+            <ProtectedRoute>
+              <ResumeInterview />
             </ProtectedRoute>
           }
         />

@@ -15,6 +15,7 @@ const FALLBACK_FEEDBACK = {
     "Re-answer with a clear definition, the core concept, and one practical example.",
   follow_up_question:
     "Can you explain that concept again with a concrete example?",
+  difficulty_recommendation: "medium",
 };
 
 const DEFAULT_INTERVIEW_TYPE = "technical";
@@ -95,6 +96,11 @@ const normalizeFeedback = (feedback) => {
         ? feedback.improved_answer.trim()
         : FALLBACK_FEEDBACK.improved_answer,
     follow_up_question: followUpQuestion,
+    difficulty_recommendation:
+      typeof feedback.difficulty_recommendation === "string" &&
+      feedback.difficulty_recommendation.trim()
+        ? feedback.difficulty_recommendation.trim().toLowerCase()
+        : FALLBACK_FEEDBACK.difficulty_recommendation,
   };
 };
 
@@ -121,6 +127,7 @@ const startInterview = async (req, res) => {
   const role = normalizeText(body.role, DEFAULT_ROLE);
   const company = normalizeText(body.company, "");
   const round = normalizeText(body.currentRound || body.round, "");
+  const resumeText = body.resumeText || "";
   const storedTopic =
     type === "company" && company ? `${company} ${role}` : finalTopic;
 
@@ -167,6 +174,7 @@ const startInterview = async (req, res) => {
           type,
           company,
           round,
+          resumeText,
         }
       );
     } catch (error) {
@@ -248,6 +256,7 @@ const submitAnswer = async (req, res) => {
           company,
           role,
           round: currentRound || round,
+          resumeText: req.body.resumeText || "",
         })
       );
     } catch (error) {
@@ -357,6 +366,7 @@ const submitAnswer = async (req, res) => {
     res.json({
       feedback,
       followUpQuestion: followUp,
+      difficultyRecommendation: feedback.difficulty_recommendation,
     });
   } catch (err) {
     console.error("[Interview] submitAnswer fatal", {

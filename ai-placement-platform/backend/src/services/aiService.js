@@ -80,6 +80,98 @@ const parseJsonObject = (content) => {
   return JSON.parse(match[0]);
 };
 
+const calculateATS = (text) => {
+  const keywords = [
+    "react", "node", "django", "python",
+    "machine learning", "data structures",
+    "algorithms", "sql", "mongodb", "api",
+    "javascript", "typescript", "aws", "docker", "kubernetes"
+  ];
+
+  let score = 0;
+  const lowerText = text.toLowerCase();
+  
+  keywords.forEach(k => {
+    if (lowerText.includes(k)) {
+      score += 10;
+    }
+  });
+
+  return Math.min(score, 100);
+};
+
+const extractSkills = (text) => {
+  const skillKeywords = [
+    "python", "java", "react", "node",
+    "django", "mongodb", "sql", "nlp",
+    "machine learning", "dsa", "javascript",
+    "typescript", "aws", "docker", "kubernetes", "express"
+  ];
+
+  const lowerText = text.toLowerCase();
+  return skillKeywords.filter(skill =>
+    lowerText.includes(skill)
+  );
+};
+
+const analyzeResume = async (resumeText) => {
+  const localAtsScore = calculateATS(resumeText);
+  const localSkills = extractSkills(resumeText);
+
+  const prompt = `
+Analyze this resume for ATS optimization.
+
+Return JSON:
+- aiAtsScore (0-100)
+- aiSkills (array of strings)
+- missingKeywords (array of strings)
+- suggestions (array of strings)
+
+Resume Text:
+${resumeText}
+`.trim();
+
+  try {
+    const response = await createChatCompletion(
+      [{ role: "user", content: prompt }],
+      { temperature: 0.2, maxTokens: 450 }
+    );
+
+    const parsed = parseJsonObject(extractMessageText(response));
+    
+    // Combine local logic with AI logic
+    const aiSkills = Array.isArray(parsed.aiSkills) ? parsed.aiSkills : (Array.isArray(parsed.skills) ? parsed.skills : []);
+    const finalSkills = [...new Set([...localSkills, ...aiSkills])];
+    const aiScore = Number(parsed.aiAtsScore) || Number(parsed.atsScore) || 50;
+    const finalAtsScore = Math.round((localAtsScore + aiScore) / 2);
+
+    return {
+      atsScore: finalAtsScore,
+      skills: finalSkills,
+      missingKeywords: Array.isArray(parsed.missingKeywords) ? parsed.missingKeywords : [],
+      suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [
+        "Add more quantified achievements",
+        "Improve keyword density for ATS",
+        "Highlight impact in projects"
+      ],
+      rawText: resumeText
+    };
+  } catch (error) {
+    logOpenRouterError("analyzeResume", error);
+    return {
+      atsScore: localAtsScore || 50,
+      skills: localSkills.length > 0 ? localSkills : ["Could not extract"],
+      missingKeywords: ["AI analysis failed"],
+      suggestions: [
+        "Add more quantified achievements",
+        "Improve keyword density for ATS",
+        "Highlight impact in projects"
+      ],
+      rawText: resumeText
+    };
+  }
+};
+
 const createChatCompletion = async (messages, options = {}) => {
   if (!OPENROUTER_API_KEY) {
     throw new Error("OPENROUTER_API_KEY is not configured");
@@ -143,6 +235,51 @@ Return only the interview question, with no explanation or bullets.
     } catch (error) {
       logOpenRouterError("generateCompanyQuestion", error);
       return getCompanyFallbackQuestion(safeCompany, safeRole, roundLabel);
+    }
+  }
+
+  if (options.type === "resume") {
+    const resumeText = options.resumeText || "No resume text provided";
+    const levelHint = 
+      safeDifficulty === "easy" ? "Focus on resume basics and core skills mentioned." :
+      safeDifficulty === "medium" ? "Deep dive into one of the projects or technical implementations listed." :
+      "Focus on system design, architecture, or complex technical decisions related to their experience.";
+
+    const prompt = `
+You are a real interviewer.
+
+Based on this resume:
+
+${resumeText}
+
+Generate a ${safeDifficulty} level interview question for ${safeRole}.
+${levelHint}
+
+Rules:
+- Ask about projects, skills, or technologies mentioned
+- Make it realistic
+- DO NOT ask generic questions
+- Ask only ONE question
+`.trim();
+
+    try {
+      const response = await createChatCompletion(
+        [
+          { role: "system", content: "You are a real interviewer." },
+          { role: "user", content: prompt }
+        ],
+        { temperature: 0.7, maxTokens: 180 }
+      );
+
+      const question = extractMessageText(response);
+      if (!question) {
+        throw new Error("Empty resume question response");
+      }
+
+      return question;
+    } catch (error) {
+      logOpenRouterError("generateResumeQuestion", error);
+      return getFallbackQuestion(safeTopic, safeDifficulty, safeRole);
     }
   }
 
@@ -239,7 +376,8 @@ Return only valid JSON in this exact shape:
   "strengths": ["string"],
   "weaknesses": ["string"],
   "improvement": "string",
-  "follow_up_question": "string"
+  "follow_up_question": "string",
+  "difficulty_recommendation": "string"
 }
 
 Scoring rules:
@@ -248,9 +386,10 @@ Scoring rules:
 - Judge technical_score for technical correctness where relevant; for HR rounds, score role reasoning and depth
 - Include company-specific expectations in the feedback
 - Give one realistic follow-up question
+- difficulty_recommendation should be one of "easy", "medium", or "hard" based on performance
 `.trim()
         : `
-You are a strict technical interviewer. Evaluate the answer like a real interviewer.
+Evaluate this answer deeply. Return structured JSON.
 
 Question:
 ${question}
@@ -258,14 +397,15 @@ ${question}
 Candidate Answer:
 ${answer}
 
-Evaluate the answer and return only valid JSON in this exact shape:
+Return only valid JSON in this exact shape:
 {
   "score": number,
   "strengths": ["string"],
   "weaknesses": ["string"],
   "missing_concepts": ["string"],
   "improved_answer": "string",
-  "follow_up_question": "string"
+  "follow_up_question": "string",
+  "difficulty_recommendation": "string"
 }
 
 Scoring rules:
@@ -275,7 +415,7 @@ Scoring rules:
 - 9 to 10: accurate, complete, and interview-quality
 
 Give a realistic follow-up question that tests the weakest part of the answer.
-Keep strengths, weaknesses, and missing_concepts concise.
+difficulty_recommendation should be one of "easy", "medium", or "hard" based on candidate's understanding.
 `.trim();
 
     const response = await createChatCompletion(
@@ -317,6 +457,11 @@ Keep strengths, weaknesses, and missing_concepts concise.
         parsed.follow_up_question.trim()
           ? parsed.follow_up_question.trim()
           : FALLBACK_EVALUATION.follow_up_question,
+      difficulty_recommendation:
+        typeof parsed.difficulty_recommendation === "string" &&
+        parsed.difficulty_recommendation.trim()
+          ? parsed.difficulty_recommendation.trim().toLowerCase()
+          : "medium",
     };
   } catch (error) {
     logOpenRouterError("evaluateAnswer", error);
@@ -381,4 +526,5 @@ module.exports = {
   generateQuestion,
   evaluateAnswer,
   generateFollowUp,
+  analyzeResume,
 };

@@ -44,15 +44,9 @@ const quickActions = [
   },
   {
     title: "Resume Based Interview",
-    description: "Generate personalized questions directly from your achievements.",
+    description: "Analyze your resume with ATS scoring and start a personalized interview session.",
     accent: "from-indigo-500 to-violet-500",
-    path: "/interview",
-    payload: {
-      type: "hr",
-      role: "SDE",
-      topic: "resume deep dive",
-      launchOnLoad: true,
-    },
+    path: "/interview/resume",
   },
 ];
 
