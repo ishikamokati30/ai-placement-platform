@@ -62,10 +62,10 @@ const extractMessageText = (response) =>
   response?.choices?.[0]?.message?.content?.trim() || "";
 
 const getFallbackQuestion = (topic, difficulty, role) =>
-  `Ask a ${difficulty} level ${topic} interview question for ${role}. Make it realistic like FAANG interviews.`;
+  `Can you explain a core concept in ${topic} and how it applies to a real-world scenario?`;
 
 const getCompanyFallbackQuestion = (company, role, roundLabel) =>
-  `In this ${company} ${role} interview, answer this ${roundLabel} question: Tell me about a decision you made under ambiguity and how you handled tradeoffs.`;
+  `Tell me about a decision you made under ambiguity and how you handled tradeoffs.`;
 
 const parseJsonObject = (content) => {
   const normalized = Array.isArray(content)
@@ -127,7 +127,10 @@ Return only the interview question, with no explanation or bullets.
 
     try {
       const response = await createChatCompletion(
-        [{ role: "user", content: prompt }],
+        [
+          { role: "system", content: "You are a technical interviewer." },
+          { role: "user", content: prompt }
+        ],
         { temperature: 0.72, maxTokens: 180 }
       );
 
@@ -143,13 +146,16 @@ Return only the interview question, with no explanation or bullets.
     }
   }
 
-  const prompt = `Ask a ${safeDifficulty} level ${safeTopic} interview question for ${safeRole}. Make it realistic like FAANG interviews.
-
-Return exactly one concise interview question. Do not include hints or explanations.`.trim();
+  const prompt = `Generate a real ${safeDifficulty} level ${safeTopic} interview question for a ${safeRole}.
+The question should be clear, concise, and similar to FAANG interviews.
+Do NOT include explanations. Only return the question.`.trim();
 
   try {
     const response = await createChatCompletion(
-      [{ role: "user", content: prompt }],
+      [
+        { role: "system", content: "You are a technical interviewer." },
+        { role: "user", content: prompt }
+      ],
       { temperature: 0.7, maxTokens: 180 }
     );
 
