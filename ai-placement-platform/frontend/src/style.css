@@ -45,3 +45,16 @@ button:disabled {
     transform: translateY(0);
   }
 }
+
+/* Markdown Prose Styles */
+.prose h1 { @apply text-3xl font-extrabold mb-6; }
+.prose h2 { @apply text-2xl font-bold mt-8 mb-4; }
+.prose h3 { @apply text-xl font-bold mt-6 mb-3; }
+.prose p { @apply mb-4 leading-relaxed text-slate-600; }
+.prose ul { @apply list-disc pl-6 mb-4 space-y-2; }
+.prose ol { @apply list-decimal pl-6 mb-4 space-y-2; }
+.prose li { @apply text-slate-600; }
+.prose strong { @apply font-bold text-slate-900; }
+.prose code { @apply rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm text-violet-600; }
+.prose pre { @apply overflow-x-auto rounded-xl bg-slate-900 p-4 text-white; }
+.prose pre code { @apply bg-transparent p-0 text-white; }

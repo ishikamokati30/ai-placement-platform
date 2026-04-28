@@ -7,6 +7,11 @@ import Interview from "./pages/Interview";
 import CompanyInterview from "./pages/interview/Company";
 import ResumeInterview from "./pages/interview/Resume";
 
+import TopicSelector from "./pages/practice/TopicSelector";
+import ConceptLearning from "./pages/practice/ConceptLearning";
+import MCQTest from "./pages/practice/MCQTest";
+import AIChat from "./pages/practice/AIChat";
+
 function ProtectedRoute({ children }) {
   const { user, loading } = useContext(AuthContext);
 
@@ -36,10 +41,42 @@ function App() {
           }
         />
         <Route
-          path="/practice"
+          path="/interview"
           element={
             <ProtectedRoute>
               <Interview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/practice"
+          element={
+            <ProtectedRoute>
+              <TopicSelector />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/practice/learn"
+          element={
+            <ProtectedRoute>
+              <ConceptLearning />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/practice/mcq"
+          element={
+            <ProtectedRoute>
+              <MCQTest />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/practice/chat"
+          element={
+            <ProtectedRoute>
+              <AIChat />
             </ProtectedRoute>
           }
         />

@@ -522,9 +522,79 @@ Ask exactly one follow-up question that targets the weakness.
   }
 };
 
+const generateConcept = async (topic) => {
+  const prompt = `
+Explain ${topic} in a structured format:
+1. Definition
+2. Key Concepts
+3. Example
+4. Interview Tips
+
+Use clean markdown formatting. Highlight keywords with bold or backticks.
+`.trim();
+
+  try {
+    const response = await createChatCompletion(
+      [{ role: "system", content: "You are an expert technical tutor." }, { role: "user", content: prompt }],
+      { temperature: 0.5, maxTokens: 800 }
+    );
+    return extractMessageText(response);
+  } catch (error) {
+    logOpenRouterError("generateConcept", error);
+    return "Failed to generate concept learning material. Please try again.";
+  }
+};
+
+const generateMCQs = async (topic, difficulty = "medium") => {
+  const prompt = `
+Generate 5 high-quality MCQs on ${topic} at ${difficulty} level.
+Return only a valid JSON array of objects in this exact shape:
+[
+ {
+   "question": "string",
+   "options": ["string", "string", "string", "string"],
+   "correctAnswer": "string (the exact option text)",
+   "explanation": "string"
+ }
+]
+`.trim();
+
+  try {
+    const response = await createChatCompletion(
+      [{ role: "system", content: "You are an expert examiner." }, { role: "user", content: prompt }],
+      { temperature: 0.7, maxTokens: 1000 }
+    );
+    const text = extractMessageText(response);
+    return parseJsonObject(text);
+  } catch (error) {
+    logOpenRouterError("generateMCQs", error);
+    return [];
+  }
+};
+
+const generateChatResponse = async (message, topic, history = []) => {
+  const messages = [
+    { role: "system", content: `You are an expert tutor helping a student with ${topic}. Explain clearly with examples. Keep answers concise but thorough.` },
+    ...history,
+    { role: "user", content: message }
+  ];
+
+  try {
+    const response = await createChatCompletion(messages, { temperature: 0.7, maxTokens: 400 });
+    return extractMessageText(response);
+  } catch (error) {
+    logOpenRouterError("generateChatResponse", error);
+    return "I'm having trouble connecting right now. Can you ask that again?";
+  }
+};
+
+
 module.exports = {
   generateQuestion,
   evaluateAnswer,
   generateFollowUp,
   analyzeResume,
+  generateConcept,
+  generateMCQs,
+  generateChatResponse,
 };

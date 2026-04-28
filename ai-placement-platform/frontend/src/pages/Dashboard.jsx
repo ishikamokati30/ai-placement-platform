@@ -55,7 +55,7 @@ export default function Dashboard() {
             Start your first interview to unlock personalized insights, track your progress, and identify weak areas.
           </p>
           <button
-            onClick={() => navigate("/practice")}
+            onClick={() => navigate("/interview")}
             className="mt-10 rounded-full bg-slate-900 px-8 py-4 text-lg font-semibold text-white transition-all hover:scale-105 hover:bg-slate-800"
           >
             Start Your First Interview
@@ -91,7 +91,7 @@ export default function Dashboard() {
       title: "Practice Interview",
       description: "Sharpen core concepts with adaptive prompts and realtime feedback.",
       accent: "from-violet-500 to-fuchsia-500",
-      path: "/practice",
+      path: "/interview",
       payload: {
         type: "technical",
         role: "SDE",

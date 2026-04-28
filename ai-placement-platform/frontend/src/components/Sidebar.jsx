@@ -2,8 +2,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 const navItems = [
   { label: "Dashboard", icon: DashboardIcon, to: "/dashboard" },
-  { label: "Practice", icon: PracticeIcon, to: "/dashboard#quick-actions" },
-  { label: "Interview", icon: InterviewIcon, to: "/practice" },
+  { label: "Practice", icon: PracticeIcon, to: "/practice" },
+  { label: "Interview", icon: InterviewIcon, to: "/interview" },
   { label: "Community", icon: CommunityIcon, to: "/dashboard#progress" },
   { label: "Profile", icon: ProfileIcon, to: "/dashboard#header" },
 ];
