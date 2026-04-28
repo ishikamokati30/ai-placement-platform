@@ -25,7 +25,7 @@ function App() {
           }
         />
         <Route
-          path="/interview"
+          path="/practice"
           element={
             <ProtectedRoute>
               <Interview />
@@ -33,7 +33,7 @@ function App() {
           }
         />
         <Route
-          path="/interview/company"
+          path="/company-interview"
           element={
             <ProtectedRoute>
               <CompanyInterview />
@@ -41,7 +41,7 @@ function App() {
           }
         />
         <Route
-          path="/interview/resume"
+          path="/resume"
           element={
             <ProtectedRoute>
               <ResumeInterview />
