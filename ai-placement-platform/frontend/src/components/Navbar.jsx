@@ -22,7 +22,7 @@ export default function Navbar() {
           Dashboard
         </button>
 
-        <button onClick={() => navigate("/interview")}>
+        <button onClick={() => navigate("/practice")}>
           Interview
         </button>
 

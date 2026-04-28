@@ -1,4 +1,6 @@
+import { useContext } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthContext } from "./context/AuthContext";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Interview from "./pages/Interview";
@@ -6,8 +8,17 @@ import CompanyInterview from "./pages/interview/Company";
 import ResumeInterview from "./pages/interview/Resume";
 
 function ProtectedRoute({ children }) {
-  const token = localStorage.getItem("token");
-  return token ? children : <Navigate to="/" replace />;
+  const { user, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500">
+        Authenticating...
+      </div>
+    );
+  }
+
+  return user ? children : <Navigate to="/" replace />;
 }
 
 function App() {

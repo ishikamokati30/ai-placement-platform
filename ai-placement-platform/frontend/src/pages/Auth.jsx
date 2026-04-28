@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import API, { getApiErrorMessage } from "../services/api";
+import { AuthContext } from "../context/AuthContext";
 
 const initialForm = {
   name: "",
@@ -15,6 +16,7 @@ export default function Auth() {
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const isLogin = mode === "login";
 
@@ -69,7 +71,7 @@ export default function Auth() {
           password: form.password,
         });
 
-        localStorage.setItem("token", res.data.token);
+        login(res.data.token);
         navigate("/dashboard", { replace: true });
         return;
       }

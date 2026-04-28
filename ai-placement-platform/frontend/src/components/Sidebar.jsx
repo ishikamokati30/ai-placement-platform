@@ -3,8 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 const navItems = [
   { label: "Dashboard", icon: DashboardIcon, to: "/dashboard" },
   { label: "Practice", icon: PracticeIcon, to: "/dashboard#quick-actions" },
-  { label: "Interview", icon: InterviewIcon, to: "/interview" },
-  { label: "Resources", icon: ResourceIcon, to: "/dashboard#weak-areas" },
+  { label: "Interview", icon: InterviewIcon, to: "/practice" },
   { label: "Community", icon: CommunityIcon, to: "/dashboard#progress" },
   { label: "Profile", icon: ProfileIcon, to: "/dashboard#header" },
 ];
@@ -134,14 +133,6 @@ function InterviewIcon({ className }) {
   );
 }
 
-function ResourceIcon({ className }) {
-  return (
-    <IconBase className={className}>
-      <path d="M6 4h9a3 3 0 013 3v13H9a3 3 0 00-3 3V4z" />
-      <path d="M6 4v16a3 3 0 013-3h9" />
-    </IconBase>
-  );
-}
 
 function CommunityIcon({ className }) {
   return (

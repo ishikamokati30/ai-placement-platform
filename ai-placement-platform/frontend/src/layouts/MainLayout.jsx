@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 
-export default function MainLayout({ children, userName }) {
+export default function MainLayout({ children }) {
   const location = useLocation();
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function MainLayout({ children, userName }) {
 
       <main className="relative min-h-screen px-4 pb-10 pt-5 lg:ml-36 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <Header userName={userName} />
+          <Header />
           <div className="mt-8">{children}</div>
         </div>
       </main>

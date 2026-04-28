@@ -30,7 +30,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <MainLayout userName="User">
+      <MainLayout>
         <div className="grid gap-5 xl:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-40 animate-pulse rounded-[32px] bg-slate-200" />
@@ -43,7 +43,7 @@ export default function Dashboard() {
 
   if (!data || data.totalInterviews === 0) {
     return (
-      <MainLayout userName="User">
+      <MainLayout>
         <div className="flex min-h-[60vh] flex-col items-center justify-center rounded-[40px] border-2 border-dashed border-slate-200 bg-white/50 p-12 text-center backdrop-blur-xl">
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-violet-100 text-3xl">
             🚀
@@ -114,7 +114,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <MainLayout userName="User">
+    <MainLayout>
       {/* Stats Section */}
       <section className="grid gap-5 xl:grid-cols-3">
         {stats.map((stat) => (
