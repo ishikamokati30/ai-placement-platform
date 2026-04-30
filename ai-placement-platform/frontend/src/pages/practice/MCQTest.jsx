@@ -5,9 +5,10 @@ import API from "../../services/api";
 export default function MCQTest() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { topic, difficulty } = location.state || { topic: "DSA", difficulty: "Medium" };
-
+  const [topic, setTopic] = useState("");
+  const [difficulty, setDifficulty] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [mcqs, setMcqs] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -15,18 +16,44 @@ export default function MCQTest() {
   const [showResult, setShowResult] = useState(false);
   const [evaluation, setEvaluation] = useState(null);
 
+  // 1. Validation & Initialization
   useEffect(() => {
-    const fetchMCQs = async () => {
-      try {
-        const res = await API.post("/practice/mcq", { topic, difficulty });
-        setMcqs(res.data.mcqs);
-      } catch (err) {
-        console.error("Failed to fetch MCQs:", err);
-      } finally {
-        setLoading(false);
+    const storedTopic = location.state?.topic || localStorage.getItem("lastTopic");
+    const storedDiff = location.state?.difficulty || "Medium";
+    
+    if (!storedTopic) {
+      alert("Please select a topic first");
+      navigate("/practice");
+    } else {
+      setTopic(storedTopic);
+      setDifficulty(storedDiff);
+      localStorage.setItem("lastTopic", storedTopic);
+    }
+  }, [location.state, navigate]);
+
+  const fetchMCQs = async () => {
+    if (!topic) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.post("/practice/mcq", { topic, difficulty });
+      const questions = res.data.questions || res.data.mcqs || [];
+      if (questions.length === 0) {
+        throw new Error("No questions available for this topic.");
       }
-    };
-    fetchMCQs();
+      setMcqs(questions);
+    } catch (err) {
+      console.error("Failed to fetch MCQs:", err);
+      setError(err.message || "Failed to load quiz questions.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (topic) {
+      fetchMCQs();
+    }
   }, [topic, difficulty]);
 
   const handleNext = () => {
@@ -49,29 +76,84 @@ export default function MCQTest() {
 
   const evaluateTest = async (answers) => {
     setLoading(true);
+    setError(null);
     try {
       const res = await API.post("/practice/evaluate", { topic, answers });
       setEvaluation(res.data);
       setShowResult(true);
     } catch (err) {
       console.error("Evaluation failed:", err);
+      setError("Failed to evaluate your answers. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // 🌀 Loading State
   if (loading && !showResult) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center space-y-6 bg-[#f8fafc]">
         <div className="h-16 w-16 animate-spin rounded-full border-4 border-sky-500 border-t-transparent shadow-xl shadow-sky-100"></div>
         <div className="text-center">
-          <h3 className="text-xl font-bold text-slate-900">Preparing your Quiz</h3>
-          <p className="text-slate-500">AI is selecting the best questions for you...</p>
+          <h3 className="text-xl font-bold text-slate-900">
+            {evaluation ? "Evaluating Results..." : "Preparing your Quiz"}
+          </h3>
+          <p className="text-slate-500">AI is processing your request...</p>
         </div>
       </div>
     );
   }
 
+  // ❌ Error State
+  if (error && !showResult) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center space-y-6 bg-[#f8fafc] px-4">
+        <div className="rounded-full bg-rose-100 p-6 text-rose-600">
+          <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div className="text-center">
+          <h3 className="text-2xl font-bold text-slate-900">Something went wrong</h3>
+          <p className="mt-2 text-slate-500">{error}</p>
+        </div>
+        <div className="flex gap-4">
+          <button
+            onClick={() => navigate("/practice")}
+            className="rounded-2xl border border-slate-200 bg-white px-8 py-3 font-bold text-slate-600 hover:bg-slate-50"
+          >
+            Go Back
+          </button>
+          <button
+            onClick={fetchMCQs}
+            className="rounded-2xl bg-sky-500 px-8 py-3 font-bold text-white hover:bg-sky-600 shadow-lg shadow-sky-100"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Empty Questions State (Safety Check)
+  if (!loading && mcqs.length === 0 && !showResult) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center space-y-6 bg-[#f8fafc]">
+        <div className="text-center">
+          <h3 className="text-xl font-bold text-slate-900">No Questions Available</h3>
+          <p className="text-slate-500">We couldn't find any questions for {topic}.</p>
+        </div>
+        <button
+          onClick={() => navigate("/practice")}
+          className="rounded-xl bg-slate-900 px-6 py-2 text-white"
+        >
+          Select Another Topic
+        </button>
+      </div>
+    );
+  }
+
+  // 🏆 Results State
   if (showResult && evaluation) {
     return (
       <div className="min-h-screen bg-[#f8fafc] px-4 py-12">
@@ -122,7 +204,7 @@ export default function MCQTest() {
               Try Another Topic
             </button>
             <button
-              onClick={() => navigate("/practice/learn", { state: location.state })}
+              onClick={() => navigate("/practice/learn", { state: { topic } })}
               className="rounded-2xl bg-sky-500 px-8 py-4 font-bold text-white shadow-lg shadow-sky-100 hover:bg-sky-600 transition-all"
             >
               Revise Theory
@@ -158,7 +240,7 @@ export default function MCQTest() {
             <div className="mt-2 h-2 w-32 overflow-hidden rounded-full bg-slate-200">
               <div 
                 className="h-full bg-sky-500 transition-all duration-500" 
-                style={{ width: `${((currentIndex + 1) / mcqs.length) * 100}%` }}
+                style={{ width: `${((currentIndex + 1) / (mcqs.length || 1)) * 100}%` }}
               ></div>
             </div>
           </div>
@@ -191,9 +273,9 @@ export default function MCQTest() {
           <div className="mt-12 flex justify-end">
             <button
               onClick={handleNext}
-              disabled={!selectedAnswer}
+              disabled={!selectedAnswer || loading}
               className={`group flex items-center gap-2 rounded-2xl px-10 py-4 font-bold transition-all ${
-                selectedAnswer
+                selectedAnswer && !loading
                   ? "bg-slate-900 text-white shadow-2xl shadow-slate-300 active:scale-95"
                   : "bg-slate-200 text-slate-400 cursor-not-allowed"
               }`}

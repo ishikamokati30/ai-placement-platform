@@ -6,26 +6,46 @@ import ReactMarkdown from "react-markdown";
 export default function ConceptLearning() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { topic } = location.state || { topic: "DSA" };
-
+  const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [content, setContent] = useState("");
 
+  // 1. Validation & Initialization
   useEffect(() => {
-    const fetchConcept = async () => {
-      try {
-        const res = await API.post("/practice/concept", { topic });
-        setContent(res.data.content);
-      } catch (err) {
-        console.error("Failed to fetch concept:", err);
-        setContent("Failed to load content. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    const storedTopic = location.state?.topic || localStorage.getItem("lastTopic");
+    if (!storedTopic) {
+      console.warn("No topic found, redirecting...");
+      navigate("/practice");
+    } else {
+      setTopic(storedTopic);
+      localStorage.setItem("lastTopic", storedTopic);
+    }
+  }, [location.state, navigate]);
 
-    fetchConcept();
+  const fetchConcept = async () => {
+    if (!topic) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.post("/practice/concept", { topic });
+      setContent(res.data.content);
+    } catch (err) {
+      console.error("Failed to fetch concept:", err);
+      setError(err.message || "Unable to load study material.");
+      setContent("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (topic) {
+      fetchConcept();
+    }
   }, [topic]);
+
+  if (!topic && !loading) return null;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-12">
@@ -41,17 +61,19 @@ export default function ConceptLearning() {
               </svg>
             </button>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">{topic}</h2>
+              <h2 className="text-xl font-bold text-slate-900">{topic || "Loading..."}</h2>
               <p className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Concept Learning</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => navigate("/practice/mcq", { state: location.state })}
-              className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-sky-100 hover:bg-sky-600 transition-all"
-            >
-              Take Quiz
-            </button>
+            {!loading && !error && (
+              <button
+                onClick={() => navigate("/practice/mcq", { state: { topic } })}
+                className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-sky-100 hover:bg-sky-600 transition-all"
+              >
+                Take Quiz
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -60,7 +82,25 @@ export default function ConceptLearning() {
         {loading ? (
           <div className="flex h-64 flex-col items-center justify-center space-y-4">
             <div className="h-12 w-12 animate-spin rounded-full border-4 border-violet-600 border-t-transparent"></div>
-            <p className="font-medium text-slate-500 animate-pulse">AI is generating your study material...</p>
+            <p className="font-medium text-slate-500 animate-pulse">Loading concept material...</p>
+          </div>
+        ) : error ? (
+          <div className="flex h-64 flex-col items-center justify-center space-y-6 rounded-[32px] border border-red-100 bg-red-50/30 p-8 text-center">
+            <div className="rounded-full bg-red-100 p-4 text-red-600">
+              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Content Unavailable</h3>
+              <p className="text-slate-500">{error}</p>
+            </div>
+            <button
+              onClick={fetchConcept}
+              className="rounded-xl bg-slate-900 px-6 py-2 text-sm font-bold text-white hover:bg-slate-800 transition-all"
+            >
+              Retry Loading
+            </button>
           </div>
         ) : (
           <div className="rounded-[32px] border border-white/45 bg-white/35 p-8 shadow-[0_22px_70px_rgba(15,23,42,0.14)] backdrop-blur-2xl lg:p-12">
@@ -76,7 +116,7 @@ export default function ConceptLearning() {
                 ← Back to Topics
               </button>
               <button
-                onClick={() => navigate("/practice/chat", { state: location.state })}
+                onClick={() => navigate("/practice/chat", { state: { topic } })}
                 className="flex items-center gap-2 text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
               >
                 Ask AI Assistant →

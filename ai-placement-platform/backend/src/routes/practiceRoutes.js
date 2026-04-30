@@ -10,6 +10,7 @@ const {
 
 router.post("/concept", protect, getConcept);
 router.post("/mcq", protect, generateMCQs);
+router.post("/quiz", protect, generateMCQs);
 router.post("/evaluate", protect, evaluatePractice);
 router.post("/chat", protect, chat);
 
