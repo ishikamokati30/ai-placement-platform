@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Interview from "./pages/Interview";
 import CompanyInterview from "./pages/interview/Company";
 import ResumeInterview from "./pages/interview/Resume";
+import Community from "./pages/Community";
 
 import TopicSelector from "./pages/practice/TopicSelector";
 import ConceptLearning from "./pages/practice/ConceptLearning";
@@ -93,6 +94,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ResumeInterview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/community"
+          element={
+            <ProtectedRoute>
+              <Community />
             </ProtectedRoute>
           }
         />

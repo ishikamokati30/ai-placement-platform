@@ -4,7 +4,7 @@ const navItems = [
   { label: "Dashboard", icon: DashboardIcon, to: "/dashboard" },
   { label: "Practice", icon: PracticeIcon, to: "/practice" },
   { label: "Interview", icon: InterviewIcon, to: "/interview" },
-  { label: "Community", icon: CommunityIcon, to: "/dashboard#progress" },
+  { label: "Community", icon: CommunityIcon, to: "/community" },
   { label: "Profile", icon: ProfileIcon, to: "/dashboard#header" },
 ];
 
