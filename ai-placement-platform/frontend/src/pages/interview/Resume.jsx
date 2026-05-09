@@ -1,7 +1,11 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+<<<<<<< HEAD
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2, ChevronRight, PlayCircle, BarChart3, Tag, Lightbulb } from "lucide-react";
 import API, { getApiErrorMessage } from "../../services/api";
+=======
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, ChevronRight, PlayCircle, BarChart3, Tag, Lightbulb, Play } from "lucide-react";
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
 
 export default function ResumeInterview() {
   const navigate = useNavigate();
@@ -62,6 +66,7 @@ export default function ResumeInterview() {
     formData.append("resume", file);
 
     try {
+<<<<<<< HEAD
       const response = await API.post("/resume/analyze", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -72,6 +77,26 @@ export default function ResumeInterview() {
       setPhase("report");
     } catch (err) {
       setError(getApiErrorMessage(err));
+=======
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/resume/analyze`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to analyze resume");
+      }
+      
+      setAtsData(data);
+      setPhase("report");
+    } catch (err) {
+      setError(err.message);
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       setPhase("upload");
     }
   };
@@ -80,6 +105,7 @@ export default function ResumeInterview() {
     setPhase("interview");
     setQuestionData(null);
     try {
+<<<<<<< HEAD
       const response = await API.post("/interview/start", {
         type: "resume",
         role,
@@ -93,6 +119,31 @@ export default function ResumeInterview() {
       setQuestionIndex(1);
     } catch (err) {
       setError(getApiErrorMessage(err));
+=======
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/interview/start`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          type: "resume",
+          role,
+          difficulty: "easy",
+          resumeText: atsData.resumeText,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+      
+      setInterviewId(data.interviewId);
+      setQuestionData({ question: data.question });
+      setCurrentDifficulty("easy");
+      setQuestionIndex(1);
+    } catch (err) {
+      setError(err.message);
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       setPhase("report");
     }
   };
@@ -104,6 +155,7 @@ export default function ResumeInterview() {
     setQuestionData(null);
     
     try {
+<<<<<<< HEAD
       const response = await API.post("/interview/start", {
         type: "resume",
         role,
@@ -117,6 +169,31 @@ export default function ResumeInterview() {
       setQuestionIndex((prev) => prev + 1);
     } catch (err) {
       setError(getApiErrorMessage(err));
+=======
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/interview/start`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          type: "resume",
+          role,
+          difficulty: difficultyToUse,
+          resumeText: atsData.resumeText,
+          interviewId,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+      
+      setQuestionData({ question: data.question });
+      setCurrentDifficulty(difficultyToUse);
+      setQuestionIndex((prev) => prev + 1);
+    } catch (err) {
+      setError(err.message);
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
     }
   };
 
@@ -125,6 +202,7 @@ export default function ResumeInterview() {
     setIsSubmitting(true);
     
     try {
+<<<<<<< HEAD
       const response = await API.post("/interview/answer", {
         interviewId,
         question: questionData.question,
@@ -139,6 +217,32 @@ export default function ResumeInterview() {
       setPhase("feedback");
     } catch (err) {
       setError(getApiErrorMessage(err));
+=======
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/interview/answer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          interviewId,
+          question: questionData.question,
+          answer,
+          type: "resume",
+          role,
+          resumeText: atsData.resumeText,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+      
+      setFeedbackData(data.feedback);
+      setFinalReport((prev) => [...prev, { question: questionData.question, answer, feedback: data.feedback }]);
+      setPhase("feedback");
+    } catch (err) {
+      setError(err.message);
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
     } finally {
       setIsSubmitting(false);
     }
@@ -154,6 +258,10 @@ export default function ResumeInterview() {
     if (feedbackData.difficulty_recommendation) {
       nextDifficulty = feedbackData.difficulty_recommendation;
     } else {
+<<<<<<< HEAD
+=======
+      // Manual fallback logic
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       const score = feedbackData.score || 5;
       if (score >= 8) {
         if (currentDifficulty === "easy") nextDifficulty = "medium";
@@ -164,6 +272,10 @@ export default function ResumeInterview() {
       }
     }
     
+<<<<<<< HEAD
+=======
+    // Progressive difficulty for first 3 questions if doing well
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
     if (questionIndex === 1 && nextDifficulty === "easy" && (feedbackData.score || 0) >= 6) {
       nextDifficulty = "medium";
     }

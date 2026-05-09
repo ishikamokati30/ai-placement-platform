@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import API from '../../services/api';
+=======
+import axios from 'axios';
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
 
 const Leaderboard = () => {
   const [data, setData] = useState([]);
@@ -14,7 +18,15 @@ const Leaderboard = () => {
 
   const fetchLeaderboard = async () => {
     try {
+<<<<<<< HEAD
       const response = await API.get('/community/leaderboard');
+=======
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/community/leaderboard`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       setData(response.data);
       setLoading(false);
     } catch (err) {

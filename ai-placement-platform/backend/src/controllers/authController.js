@@ -52,20 +52,27 @@ const signup = async (req, res) => {
       hashedPassword
     );
 
+<<<<<<< HEAD
     console.log(`[SIGNUP SUCCESS] User created: ${user.email}`);
 
+=======
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
     const token = signToken(user);
 
     // ✅ Remove password before sending response
     delete user.password;
 
     return res.status(201).json({
+<<<<<<< HEAD
       success: true,
+=======
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       message: "User registered successfully",
       token,
       user,
     });
   } catch (err) {
+<<<<<<< HEAD
     console.error("❌ Signup Error Detail:", {
       message: err.message,
       code: err.code || null,
@@ -76,10 +83,15 @@ const signup = async (req, res) => {
     if (err.code === "23505") {
       return res.status(400).json({
         success: false,
+=======
+    if (err.code === "23505") {
+      return res.status(400).json({
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
         message: "Email already registered",
       });
     }
 
+<<<<<<< HEAD
     if (err.code === "42P01") {
       return res.status(500).json({
         success: false,
@@ -90,10 +102,19 @@ const signup = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error during signup: " + (err.message || ""),
+=======
+    console.error("Signup Error:", {
+      message: err.message,
+      code: err.code || null,
+    });
+    return res.status(500).json({
+      message: "Server error during signup",
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
     });
   }
 };
 
+<<<<<<< HEAD
 
 // 🔐 LOGIN
 const login = async (req, res) => {
@@ -108,6 +129,17 @@ const login = async (req, res) => {
       console.warn(`[LOGIN FAILED] Missing credentials for: ${normalizedEmail}`);
       return res.status(400).json({
         success: false,
+=======
+// 🔐 LOGIN
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    const normalizedEmail = email?.trim().toLowerCase();
+
+    // ✅ Basic validation
+    if (!normalizedEmail || !password) {
+      return res.status(400).json({
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
         message: "Email and password are required",
       });
     }
@@ -115,9 +147,13 @@ const login = async (req, res) => {
     // ✅ Check user
     const user = await authService.getUserByEmail(normalizedEmail);
     if (!user) {
+<<<<<<< HEAD
       console.warn(`[LOGIN FAILED] User not found: ${normalizedEmail}`);
       return res.status(401).json({
         success: false,
+=======
+      return res.status(401).json({
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
         message: "Invalid email or password",
       });
     }
@@ -125,14 +161,19 @@ const login = async (req, res) => {
     // ✅ Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+<<<<<<< HEAD
       console.warn(`[LOGIN FAILED] Incorrect password for: ${normalizedEmail}`);
       return res.status(401).json({
         success: false,
+=======
+      return res.status(401).json({
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
         message: "Invalid email or password",
       });
     }
 
     // ✅ Generate JWT
+<<<<<<< HEAD
     if (!process.env.JWT_SECRET) {
       console.error("❌ JWT_SECRET is missing from environment variables!");
       return res.status(500).json({
@@ -141,19 +182,26 @@ const login = async (req, res) => {
       });
     }
 
+=======
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
     const token = signToken(user);
 
     // ✅ Remove password
     delete user.password;
 
+<<<<<<< HEAD
     console.log(`[LOGIN SUCCESS] User: ${normalizedEmail}`);
     return res.status(200).json({
       success: true,
+=======
+    return res.status(200).json({
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       message: "Login successful",
       token,
       user,
     });
   } catch (err) {
+<<<<<<< HEAD
     console.error("❌ Login Route Error:", {
       message: err.message,
       stack: err.stack,
@@ -171,6 +219,11 @@ const login = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error during login: " + err.message,
+=======
+    console.error("Login Error:", err);
+    return res.status(500).json({
+      message: "Server error during login",
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
     });
   }
 };

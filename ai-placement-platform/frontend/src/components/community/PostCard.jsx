@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD
 import API from '../../services/api';
+=======
+import axios from 'axios';
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
 import CommentSection from './CommentSection';
 
 const PostCard = ({ post, onUpdate }) => {
@@ -23,7 +27,15 @@ const PostCard = ({ post, onUpdate }) => {
     );
 
     try {
+<<<<<<< HEAD
       const response = await API.post('/community/upvote', { postId: post.id });
+=======
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/community/upvote`,
+        { postId: post.id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       // Sync with server response
       setUpvotes(response.data.upvotes);
       setUpvotedBy(response.data.upvotedBy);

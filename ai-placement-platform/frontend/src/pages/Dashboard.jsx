@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import MainLayout from "../layouts/MainLayout";
+<<<<<<< HEAD
 import API from "../services/api";
 
+=======
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -13,8 +16,18 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+<<<<<<< HEAD
         const response = await API.get("/dashboard");
         setData(response.data);
+=======
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/dashboard`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        const result = await response.json();
+        setData(result);
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -25,7 +38,10 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
   if (loading) {
     return (
       <MainLayout>

@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD
 import API from '../../services/api';
+=======
+import axios from 'axios';
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
 
 const CreatePost = ({ onPostCreated }) => {
   const [content, setContent] = useState('');
@@ -15,7 +19,15 @@ const CreatePost = ({ onPostCreated }) => {
 
     try {
       setIsSubmitting(true);
+<<<<<<< HEAD
       const response = await API.post('/community/post', { content, tags });
+=======
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/community/post`,
+        { content, tags },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       
       setContent('');
       setTags([]);

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import API from '../../services/api';
 
+=======
+import axios from 'axios';
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
 import PostCard from './PostCard';
 import CreatePost from './CreatePost';
 
@@ -15,7 +19,15 @@ const PostFeed = () => {
 
   const fetchPosts = async () => {
     try {
+<<<<<<< HEAD
       const response = await API.get('/community/posts');
+=======
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/community/posts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+>>>>>>> 412487494f6ea411007e0aa6e5c1367233ee236a
       setPosts(response.data);
       setLoading(false);
     } catch (err) {
