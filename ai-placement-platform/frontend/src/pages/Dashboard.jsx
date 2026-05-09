@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import MainLayout from "../layouts/MainLayout";
+import API from "../services/api";
+
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -11,13 +13,8 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/dashboard`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        const result = await response.json();
-        setData(result);
+        const response = await API.get("/dashboard");
+        setData(response.data);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -27,6 +24,7 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, []);
+
 
   if (loading) {
     return (

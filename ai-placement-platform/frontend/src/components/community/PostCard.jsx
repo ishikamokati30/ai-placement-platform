@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import API from '../../services/api';
 import CommentSection from './CommentSection';
 
 const PostCard = ({ post, onUpdate }) => {
@@ -23,11 +23,7 @@ const PostCard = ({ post, onUpdate }) => {
     );
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/community/upvote`,
-        { postId: post.id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await API.post('/community/upvote', { postId: post.id });
       // Sync with server response
       setUpvotes(response.data.upvotes);
       setUpvotedBy(response.data.upvotedBy);

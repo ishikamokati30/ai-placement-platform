@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import API from '../../services/api';
 
 const Leaderboard = () => {
   const [data, setData] = useState([]);
@@ -14,11 +14,7 @@ const Leaderboard = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/community/leaderboard`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await API.get('/community/leaderboard');
       setData(response.data);
       setLoading(false);
     } catch (err) {

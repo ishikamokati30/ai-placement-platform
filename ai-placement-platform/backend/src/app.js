@@ -15,18 +15,29 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
-  "https://elevateai-ai.vercel.app", // Common pattern
+  "https://elevateai-ai.vercel.app",
   "https://ai-placement-platform.vercel.app",
-];
+  process.env.FRONTEND_URL, // Allow frontend URL from env
+].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes(".vercel.app")) {
+    
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin.includes("*")) {
+        const regex = new RegExp("^" + allowedOrigin.replace(/\*/g, ".*") + "$");
+        return regex.test(origin);
+      }
+      return allowedOrigin === origin || origin.endsWith(".vercel.app");
+    });
+
+    if (isAllowed || process.env.NODE_ENV !== "production") {
       callback(null, true);
     } else {
-      callback(null, true); // Still allow for now to prevent blocking, but with more info
+      console.warn(`Blocked by CORS: ${origin}`);
+      callback(new Error("Not allowed by CORS"));
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -50,23 +61,27 @@ app.use("/api/practice", practiceRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
+// Task 8: Health check route
 app.get("/", (req, res) => {
-  res.json({ status: "ok", message: "ElevateAI API is running" });
+  res.status(200).json({ status: "Backend running" });
 });
 
 // ❌ Global Error Handler
 app.use((err, req, res, next) => {
-  console.error("❌ GLOBAL ERROR:", {
+  const statusCode = err.status || 500;
+  console.error(`❌ ERROR [${statusCode}]:`, {
     message: err.message,
-    stack: process.env.NODE_ENV === "production" ? null : err.stack,
+    stack: process.env.NODE_ENV === "production" ? "🥞" : err.stack,
     path: req.path,
-    method: req.method
+    method: req.method,
+    body: req.method !== 'GET' ? req.body : undefined
   });
 
-  res.status(err.status || 500).json({
+  res.status(statusCode).json({
     error: true,
     message: err.message || "Internal Server Error",
-    path: req.path
+    path: req.path,
+    status: statusCode
   });
 });
 

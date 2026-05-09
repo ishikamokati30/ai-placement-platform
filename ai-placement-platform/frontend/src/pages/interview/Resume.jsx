@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, ChevronRight, PlayCircle, BarChart3, Tag, Lightbulb, Play } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, ChevronRight, PlayCircle, BarChart3, Tag, Lightbulb } from "lucide-react";
+import API, { getApiErrorMessage } from "../../services/api";
 
 export default function ResumeInterview() {
   const navigate = useNavigate();
@@ -61,24 +62,16 @@ export default function ResumeInterview() {
     formData.append("resume", file);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/resume/analyze`, {
-        method: "POST",
+      const response = await API.post("/resume/analyze", formData, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "multipart/form-data",
         },
-        body: formData,
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to analyze resume");
-      }
-      
-      setAtsData(data);
+      setAtsData(response.data);
       setPhase("report");
     } catch (err) {
-      setError(err.message);
+      setError(getApiErrorMessage(err));
       setPhase("upload");
     }
   };
@@ -87,29 +80,19 @@ export default function ResumeInterview() {
     setPhase("interview");
     setQuestionData(null);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/interview/start`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          type: "resume",
-          role,
-          difficulty: "easy",
-          resumeText: atsData.resumeText,
-        }),
+      const response = await API.post("/interview/start", {
+        type: "resume",
+        role,
+        difficulty: "easy",
+        resumeText: atsData.resumeText,
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      
-      setInterviewId(data.interviewId);
-      setQuestionData({ question: data.question });
+      setInterviewId(response.data.interviewId);
+      setQuestionData({ question: response.data.question });
       setCurrentDifficulty("easy");
       setQuestionIndex(1);
     } catch (err) {
-      setError(err.message);
+      setError(getApiErrorMessage(err));
       setPhase("report");
     }
   };
@@ -121,29 +104,19 @@ export default function ResumeInterview() {
     setQuestionData(null);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/interview/start`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          type: "resume",
-          role,
-          difficulty: difficultyToUse,
-          resumeText: atsData.resumeText,
-          interviewId,
-        }),
+      const response = await API.post("/interview/start", {
+        type: "resume",
+        role,
+        difficulty: difficultyToUse,
+        resumeText: atsData.resumeText,
+        interviewId,
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      
-      setQuestionData({ question: data.question });
+      setQuestionData({ question: response.data.question });
       setCurrentDifficulty(difficultyToUse);
       setQuestionIndex((prev) => prev + 1);
     } catch (err) {
-      setError(err.message);
+      setError(getApiErrorMessage(err));
     }
   };
 
@@ -152,30 +125,20 @@ export default function ResumeInterview() {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/interview/answer`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          interviewId,
-          question: questionData.question,
-          answer,
-          type: "resume",
-          role,
-          resumeText: atsData.resumeText,
-        }),
+      const response = await API.post("/interview/answer", {
+        interviewId,
+        question: questionData.question,
+        answer,
+        type: "resume",
+        role,
+        resumeText: atsData.resumeText,
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      
-      setFeedbackData(data.feedback);
-      setFinalReport((prev) => [...prev, { question: questionData.question, answer, feedback: data.feedback }]);
+      setFeedbackData(response.data.feedback);
+      setFinalReport((prev) => [...prev, { question: questionData.question, answer, feedback: response.data.feedback }]);
       setPhase("feedback");
     } catch (err) {
-      setError(err.message);
+      setError(getApiErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -191,7 +154,6 @@ export default function ResumeInterview() {
     if (feedbackData.difficulty_recommendation) {
       nextDifficulty = feedbackData.difficulty_recommendation;
     } else {
-      // Manual fallback logic
       const score = feedbackData.score || 5;
       if (score >= 8) {
         if (currentDifficulty === "easy") nextDifficulty = "medium";
@@ -202,7 +164,6 @@ export default function ResumeInterview() {
       }
     }
     
-    // Progressive difficulty for first 3 questions if doing well
     if (questionIndex === 1 && nextDifficulty === "easy" && (feedbackData.score || 0) >= 6) {
       nextDifficulty = "medium";
     }

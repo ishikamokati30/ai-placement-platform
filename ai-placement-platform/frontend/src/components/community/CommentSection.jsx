@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import API from '../../services/api';
 
 const CommentSection = ({ postId, initialComments, onCommentAdded }) => {
   const [comments, setComments] = useState(initialComments);
@@ -12,11 +12,7 @@ const CommentSection = ({ postId, initialComments, onCommentAdded }) => {
 
     try {
       setIsSubmitting(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/community/comment`,
-        { postId, text: newComment },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await API.post('/community/comment', { postId, text: newComment });
       
       const commentData = response.data;
       setComments([...comments, commentData]);
