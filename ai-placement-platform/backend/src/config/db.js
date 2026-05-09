@@ -1,7 +1,14 @@
 const { Pool } = require("pg");
 
+let connectionString = process.env.DATABASE_URL;
+
+// Ensure correct format: postgresql:// (some platforms provide postgres://)
+if (connectionString && connectionString.startsWith("postgres://")) {
+  connectionString = connectionString.replace("postgres://", "postgresql://");
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: connectionString,
   ssl: {
     rejectUnauthorized: false, // Required for Render PostgreSQL
   },

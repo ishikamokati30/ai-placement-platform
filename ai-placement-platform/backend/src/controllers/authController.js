@@ -52,7 +52,7 @@ const signup = async (req, res) => {
       hashedPassword
     );
 
-    console.log("✅ User created successfully:", user.email);
+    console.log(`[SIGNUP SUCCESS] User created: ${user.email}`);
 
     const token = signToken(user);
 
@@ -60,6 +60,7 @@ const signup = async (req, res) => {
     delete user.password;
 
     return res.status(201).json({
+      success: true,
       message: "User registered successfully",
       token,
       user,
@@ -74,18 +75,21 @@ const signup = async (req, res) => {
 
     if (err.code === "23505") {
       return res.status(400).json({
+        success: false,
         message: "Email already registered",
       });
     }
 
     if (err.code === "42P01") {
       return res.status(500).json({
+        success: false,
         message: "Database error: Users table not found. Please run setup script.",
       });
     }
 
     return res.status(500).json({
-      message: "Server error during signup. " + (err.message || ""),
+      success: false,
+      message: "Server error during signup: " + (err.message || ""),
     });
   }
 };
@@ -93,13 +97,17 @@ const signup = async (req, res) => {
 
 // 🔐 LOGIN
 const login = async (req, res) => {
-  try {
-    const { email, password } = req.body || {};
-    const normalizedEmail = email?.trim().toLowerCase();
+  const { email, password } = req.body || {};
+  const normalizedEmail = email?.trim().toLowerCase();
 
+  console.log(`[LOGIN ATTEMPT] Email: ${normalizedEmail}`);
+
+  try {
     // ✅ Basic validation
     if (!normalizedEmail || !password) {
+      console.warn(`[LOGIN FAILED] Missing credentials for: ${normalizedEmail}`);
       return res.status(400).json({
+        success: false,
         message: "Email and password are required",
       });
     }
@@ -107,7 +115,9 @@ const login = async (req, res) => {
     // ✅ Check user
     const user = await authService.getUserByEmail(normalizedEmail);
     if (!user) {
+      console.warn(`[LOGIN FAILED] User not found: ${normalizedEmail}`);
       return res.status(401).json({
+        success: false,
         message: "Invalid email or password",
       });
     }
@@ -115,26 +125,52 @@ const login = async (req, res) => {
     // ✅ Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      console.warn(`[LOGIN FAILED] Incorrect password for: ${normalizedEmail}`);
       return res.status(401).json({
+        success: false,
         message: "Invalid email or password",
       });
     }
 
     // ✅ Generate JWT
+    if (!process.env.JWT_SECRET) {
+      console.error("❌ JWT_SECRET is missing from environment variables!");
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error: JWT_SECRET missing",
+      });
+    }
+
     const token = signToken(user);
 
     // ✅ Remove password
     delete user.password;
 
+    console.log(`[LOGIN SUCCESS] User: ${normalizedEmail}`);
     return res.status(200).json({
+      success: true,
       message: "Login successful",
       token,
       user,
     });
   } catch (err) {
-    console.error("Login Error:", err);
+    console.error("❌ Login Route Error:", {
+      message: err.message,
+      stack: err.stack,
+      email: normalizedEmail
+    });
+
+    // Check for specific DB errors
+    if (err.code === "ECONNREFUSED") {
+      return res.status(503).json({
+        success: false,
+        message: "Database connection refused. Please check if your DB is running.",
+      });
+    }
+
     return res.status(500).json({
-      message: "Server error during login",
+      success: false,
+      message: "Server error during login: " + err.message,
     });
   }
 };

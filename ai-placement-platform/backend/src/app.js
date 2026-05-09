@@ -12,10 +12,26 @@ const communityRoutes = require("./routes/communityRoutes");
 const app = express();
 
 // 🌐 CORS Configuration
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://elevateai-ai.vercel.app", // Common pattern
+  "https://ai-placement-platform.vercel.app",
+];
+
 app.use(cors({
-  origin: "*", // Allow all for now, but can be restricted to Vercel URL
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes(".vercel.app")) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Still allow for now to prevent blocking, but with more info
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
 
 app.use(express.json());
