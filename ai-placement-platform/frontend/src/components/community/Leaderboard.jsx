@@ -16,7 +16,7 @@ const Leaderboard = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/community/leaderboard', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/community/leaderboard`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setData(response.data);

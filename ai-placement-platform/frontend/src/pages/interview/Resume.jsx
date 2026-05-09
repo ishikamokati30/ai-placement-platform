@@ -61,7 +61,7 @@ export default function ResumeInterview() {
     formData.append("resume", file);
 
     try {
-      const response = await fetch("http://localhost:5000/api/resume/analyze", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/resume/analyze`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -87,7 +87,7 @@ export default function ResumeInterview() {
     setPhase("interview");
     setQuestionData(null);
     try {
-      const response = await fetch("http://localhost:5000/api/interview/start", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/interview/start`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -121,7 +121,7 @@ export default function ResumeInterview() {
     setQuestionData(null);
     
     try {
-      const response = await fetch("http://localhost:5000/api/interview/start", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/interview/start`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -152,7 +152,7 @@ export default function ResumeInterview() {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch("http://localhost:5000/api/interview/answer", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/interview/answer`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

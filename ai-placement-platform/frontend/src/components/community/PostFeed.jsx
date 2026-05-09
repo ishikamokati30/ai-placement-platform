@@ -16,7 +16,7 @@ const PostFeed = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/community/posts', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/community/posts`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPosts(response.data);

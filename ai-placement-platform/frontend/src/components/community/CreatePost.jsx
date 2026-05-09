@@ -16,7 +16,7 @@ const CreatePost = ({ onPostCreated }) => {
     try {
       setIsSubmitting(true);
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5000/api/community/post', 
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/community/post`,
         { content, tags },
         { headers: { Authorization: `Bearer ${token}` } }
       );

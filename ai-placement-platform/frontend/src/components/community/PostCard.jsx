@@ -24,7 +24,7 @@ const PostCard = ({ post, onUpdate }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5000/api/community/upvote', 
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/community/upvote`,
         { postId: post.id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
