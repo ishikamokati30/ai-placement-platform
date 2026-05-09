@@ -80,6 +80,19 @@ const parseJsonObject = (content) => {
   return JSON.parse(match[0]);
 };
 
+const parseJsonArray = (content) => {
+  const normalized = Array.isArray(content)
+    ? content.map((part) => part?.text || "").join("")
+    : String(content || "");
+
+  const match = normalized.match(/\[[\s\S]*\]/);
+  if (!match) {
+    throw new Error("Model response did not contain a JSON array");
+  }
+
+  return JSON.parse(match[0]);
+};
+
 const calculateATS = (text) => {
   const keywords = [
     "react", "node", "django", "python",
@@ -547,7 +560,10 @@ Use clean markdown formatting. Highlight keywords with bold or backticks.
 
 const generateMCQs = async (topic, difficulty = "medium") => {
   const prompt = `
-Generate 5 high-quality MCQs on ${topic} at ${difficulty} level.
+Generate 10 UNIQUE interview MCQs on ${topic} at ${difficulty} level.
+Cover different subtopics.
+Avoid repeating patterns.
+Mix conceptual, scenario-based, and problem-solving questions.
 Return only a valid JSON array of objects in this exact shape:
 [
  {
@@ -562,12 +578,59 @@ Return only a valid JSON array of objects in this exact shape:
   try {
     const response = await createChatCompletion(
       [{ role: "system", content: "You are an expert examiner." }, { role: "user", content: prompt }],
-      { temperature: 0.7, maxTokens: 1000 }
+      { temperature: 0.85, maxTokens: 2200 }
     );
     const text = extractMessageText(response);
-    return parseJsonObject(text);
+    return parseJsonArray(text);
   } catch (error) {
     logOpenRouterError("generateMCQs", error);
+    return [];
+  }
+};
+
+const generateInterviewQuestions = async (
+  topic,
+  difficulty = "medium",
+  role = "SDE",
+  count = 10,
+  options = {}
+) => {
+  const safeTopic = normalizeText(topic, "general computer science");
+  const safeDifficulty = normalizeText(difficulty, "medium");
+  const safeRole = normalizeText(role, "SDE");
+  const safeCompany = normalizeText(options.company, "");
+  const companyHint = safeCompany
+    ? `Company context: ${safeCompany}. Include realistic ${safeCompany} interview expectations where useful.`
+    : "";
+
+  const prompt = `
+Generate ${count} UNIQUE interview questions on ${safeTopic}.
+Difficulty: ${safeDifficulty}
+Role: ${safeRole}
+${companyHint}
+
+Rules:
+- Cover different subtopics.
+- Avoid repeating patterns.
+- Mix conceptual, scenario-based, and problem-solving questions.
+- Return only a valid JSON array of strings.
+- Each question must be clear and concise.
+`.trim();
+
+  try {
+    const response = await createChatCompletion(
+      [
+        { role: "system", content: "You are a technical interviewer." },
+        { role: "user", content: prompt },
+      ],
+      { temperature: 0.85, maxTokens: 1600 }
+    );
+
+    return parseJsonArray(extractMessageText(response))
+      .filter((item) => typeof item === "string" && item.trim())
+      .map((item) => item.trim());
+  } catch (error) {
+    logOpenRouterError("generateInterviewQuestions", error);
     return [];
   }
 };
@@ -596,5 +659,6 @@ module.exports = {
   analyzeResume,
   generateConcept,
   generateMCQs,
+  generateInterviewQuestions,
   generateChatResponse,
 };

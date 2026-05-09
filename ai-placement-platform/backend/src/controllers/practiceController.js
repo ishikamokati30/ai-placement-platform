@@ -99,8 +99,7 @@ const evaluatePractice = async (req, res) => {
 
     const finalScore = Math.round((score / answers.length) * 10) || 0;
     const weakAreas = finalScore < 6 ? [topic] : [];
-
-    // Save to database safely
+    
     if (userId) {
       pool.query(
         `INSERT INTO interviews (user_id, type, topic, score) VALUES ($1, $2, $3, $4)`,
