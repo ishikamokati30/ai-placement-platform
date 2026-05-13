@@ -124,14 +124,19 @@ export const setAuthSession = (token, user = null) => {
   return decoded;
 };
 
+// Get base API URL from environment variable or fallback to localhost
 const getBaseURL = () => {
   let url = import.meta.env.VITE_API_URL || "http://localhost:5000";
   url = url.replace(/\/+$/, "").replace(/\/api$/i, "");
   return `${url}/api`;
 };
 
+// Export API base URL as a constant for direct use if needed
+export const API_BASE_URL = getBaseURL();
+
+// Create axios instance with base URL and timeout
 const API = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",
