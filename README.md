@@ -363,7 +363,7 @@ The platform focuses on:
 
 ---
 
-# 👩‍💻 Developed By
+# 👩‍💻 Developed By :
 
 Ishika Mokati
 
